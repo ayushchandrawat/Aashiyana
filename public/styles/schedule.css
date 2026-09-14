@@ -1,0 +1,947 @@
+.schedule-page {
+  --module-accent: var(--module-schedule);
+  display: grid;
+  /* Without an explicit column, the implicit track sizes to `auto`
+   * (max-content): a child that refuses to shrink - the tab row's
+   * `flex-wrap: nowrap` rail with a long locale's labels - then grows this
+   * whole grid past the viewport instead of overflowing on its own. Every
+   * other bleed module avoids this by never being display:grid at the root;
+   * Schedule needs the grid for its stat sections, so the column itself has
+   * to allow shrinking below its content's natural width. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  min-inline-size: 0;
+  padding-bottom: var(--space-8);
+}
+
+/* Content column (#577 contract): the toolbar and tab rail are full-bleed
+ * shared components that pad themselves; the body below carries the same
+ * --page-inline-pad via margin so its cards keep their own internal padding
+ * instead of stretching edge-to-edge. */
+.schedule-today,
+.schedule-content {
+  margin-inline: var(--page-inline-pad);
+}
+
+/* Container context lives on the margined box, not the full-bleed page root,
+ * so the responsive grids below react to the width they actually render at. */
+.schedule-content {
+  container: schedule-page / inline-size;
+}
+
+.schedule-body {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.schedule-content,
+.schedule-content > section,
+.schedule-today {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.schedule-toolbar {
+  margin-bottom: calc(var(--space-4) * -1);
+}
+
+.schedule-today > h2,
+.schedule-content > section > h2 {
+  margin-bottom: var(--space-2);
+}
+
+.schedule-create {
+  align-self: start;
+}
+
+.schedule-create > .schedule-form {
+  border-top: 3px solid var(--module-schedule);
+}
+
+.schedule-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.schedule-form > .form-field,
+.schedule-form .input,
+.schedule-actions > .btn {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.schedule-form > h2,
+.schedule-form > button,
+.schedule-form > .schedule-actions,
+.schedule-form > .form-field:has(input[name="name"]),
+.schedule-form > .schedule-active-field {
+  grid-column: 1 / -1;
+}
+
+.schedule-color-field .form-input--color {
+  width: 64px;
+  flex: 0 0 auto;
+}
+
+.schedule-active-field .toggle {
+  align-self: start;
+}
+
+/* Bare <fieldset> carries a browser-default border/padding/min-width this
+   form never wants - it's used purely to disable a field group in one line
+   (disabled excludes it from FormData and native validation together). */
+.schedule-modal-form fieldset[data-field] {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+}
+
+/* The rule above's `display: flex` otherwise outranks the browser's own
+   `[hidden] { display: none }` (class+attribute beats a lone attribute
+   selector) - without this, a hidden mode's fieldset stayed visually
+   stacked under the active one even though `disabled` correctly kept it
+   out of FormData/validation. */
+.schedule-modal-form fieldset[data-field][hidden] {
+  display: none;
+}
+
+.schedule-create-mode {
+  margin-top: 4px;
+}
+
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .schedule-page input[type="time"],
+  :root:not([data-theme="light"]) .schedule-modal-form input[type="time"] {
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] .schedule-page input[type="time"],
+:root[data-theme="dark"] .schedule-modal-form input[type="time"] {
+  color-scheme: dark;
+}
+
+.schedule-details {
+  /* Shift colour belongs to its small swatch, not to a module-specific rail.
+   * This keeps the cell in the same neutral card family as Notes and Tasks. */
+  margin-bottom: var(--space-3);
+  min-inline-size: 0;
+  overflow: hidden;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.schedule-details:not([open]):hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.schedule-details > summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-lg);
+  padding: var(--space-3) var(--space-4);
+}
+
+.schedule-details[open] > summary {
+  background-color: var(--color-surface-hover);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.schedule-details form,
+.schedule-details h3,
+.schedule-details .schedule-days,
+.schedule-details .schedule-actions {
+  margin: var(--space-3) var(--space-4) 0;
+}
+
+/* 12rem fits "24 · 24-hour shift" (the longest shipped preset) without the
+ * native <select> eliding its own closed-state text - a <select> can't wrap
+ * that text the way a list-row name can, so the fix is width, not truncation.
+ * auto-fill alone (no mobile override) already drops to one column wherever
+ * that doesn't fit, so the same rule serves every breakpoint. */
+.schedule-days {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+
+.schedule-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* A cycle day can carry several classes (a timetable), not just one - a small
+ * add/remove list instead of a single <select>, same grid cell as before. */
+.schedule-day-group {
+  min-width: 0;
+}
+
+.schedule-day-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.schedule-day-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.schedule-day-row__main {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.schedule-day-row__main .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.schedule-day-row-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--color-border);
+}
+
+/* A shift type's attached custom fields (migration 181) - same list/row shape
+ * as the cycle-day editor above, plus a drag handle and the reorder buttons
+ * makeSortable() requires alongside it. */
+.schedule-type-fields-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.schedule-type-field-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.schedule-type-field-row__handle {
+  background: none;
+  border: none;
+  padding: var(--space-1);
+  cursor: grab;
+  color: var(--color-text-secondary);
+  flex: 0 0 auto;
+}
+
+.schedule-type-field-row__name {
+  flex: 1;
+  min-width: 0;
+}
+
+.schedule-type-field-row__overlay {
+  flex: 0 0 auto;
+  font-size: var(--text-2xs);
+}
+
+.schedule-type-field-add {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.schedule-type-field-add .input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Shift types keep their actions inside the edit form; give that nested row
+ * the same breathing room as the pattern action row below its card content. */
+.schedule-details > .schedule-form > .schedule-actions {
+  margin: var(--space-1) 0 0;
+  padding-bottom: var(--space-3);
+}
+
+.schedule-swatch {
+  display: inline-block;
+  width: .7rem;
+  height: .7rem;
+  border-radius: 50%;
+  background: var(--schedule-color);
+  flex: 0 0 auto;
+}
+
+.schedule-entry-row,
+.schedule-override {
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.schedule-type-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+}
+
+.schedule-extra-badge {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+}
+
+.schedule-library__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.schedule-icon-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: fit-content;
+}
+
+
+@media (max-width: 639px) {
+  .schedule-page {
+    gap: var(--space-3);
+    padding-bottom: calc(var(--nav-bottom-height) + var(--space-6));
+  }
+
+  .schedule-toolbar {
+    margin-bottom: calc(var(--space-3) * -1);
+  }
+
+  .schedule-today {
+    padding: var(--space-3);
+  }
+
+  .schedule-create > .schedule-form {
+    padding: var(--space-3);
+  }
+
+  .schedule-form {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .schedule-form > label {
+    min-width: 0;
+  }
+
+  .schedule-form input,
+  .schedule-form select {
+    min-height: 2.75rem;
+  }
+
+  .schedule-form > button,
+  .schedule-actions .btn {
+    min-height: 2.75rem;
+  }
+
+  .schedule-details {
+    margin-bottom: var(--space-2);
+  }
+
+  .schedule-details > summary {
+    padding: var(--space-3);
+  }
+
+  .schedule-details > .schedule-form,
+  .schedule-details > .schedule-actions {
+    inline-size: calc(100% - var(--space-3) - var(--space-3));
+    max-inline-size: calc(100% - var(--space-3) - var(--space-3));
+    margin-inline: var(--space-3);
+  }
+
+  .schedule-details > .schedule-actions {
+    margin-top: var(--space-1);
+    margin-bottom: var(--space-3);
+  }
+
+  .schedule-details > h3,
+  .schedule-details > .schedule-days {
+    margin-inline: var(--space-3);
+  }
+
+  .schedule-days {
+    padding: var(--space-2);
+  }
+
+  .schedule-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .schedule-actions .btn {
+    justify-content: center;
+  }
+
+  .schedule-override {
+    flex-wrap: wrap;
+    min-height: 3.25rem;
+  }
+}
+
+
+.schedule-warnings {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-light);
+  color: var(--color-warning-ink);
+}
+
+.schedule-warnings p { margin: 0; }
+
+.schedule-override-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+
+@media (max-width: 639px) {
+  .schedule-override-actions {
+    flex: 1 0 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: var(--space-2);
+  }
+}
+
+
+.schedule-statistics,
+.schedule-stat-sections,
+.schedule-stat-card {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.schedule-stat-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.schedule-stat-filters > :first-child,
+.schedule-stat-range,
+.schedule-stat-dates,
+.schedule-stat-filter-actions {
+  grid-column: 1 / -1;
+}
+
+.schedule-stat-dates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.schedule-stat-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.schedule-stat-range__choices {
+  display: flex;
+  inline-size: 100%;
+  max-inline-size: 100%;
+  overflow-x: auto;
+}
+
+.schedule-stat-range__choices .segmented__item {
+  flex: 1 0 auto;
+}
+
+.schedule-stat-period,
+.schedule-stat-card > div > p,
+.schedule-stat-empty,
+.schedule-stat-loading {
+  margin: 0;
+}
+
+.schedule-stat-empty,
+.schedule-stat-loading {
+  color: var(--color-text-secondary);
+}
+
+.schedule-readonly {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.schedule-stat-metrics {
+  --summary-cards: 2;
+}
+
+.schedule-stat-metrics--with-overtime {
+  --summary-cards: 3;
+}
+
+.metric-card--warning {
+  border-color: color-mix(in oklch, var(--color-warning) 40%, transparent);
+}
+
+.metric-card--warning .metric-card__value {
+  color: var(--color-warning);
+}
+
+.schedule-stat-card > div > h2 {
+  margin-bottom: var(--space-1);
+}
+
+.schedule-reminder-settings {
+  margin-bottom: var(--space-4);
+}
+
+.schedule-reminder-settings__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.schedule-reminder-settings__row .toggle-row {
+  flex: 1 1 auto;
+}
+
+.schedule-reminder-settings__row select {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.schedule-stat-list {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+
+.schedule-stat-row {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.schedule-stat-total {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.schedule-stat-row__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.schedule-stat-row__name {
+  min-width: 0;
+  flex: 1;
+}
+
+.schedule-stat-row strong,
+.schedule-stat-total strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bar track/fill: same tokens and technique as .budget-bar-row (budget.css) -
+ * --color-fill-well over --color-surface-2 for contrast (Critique 2026-08-10:
+ * surface-2 measured 1.02:1 on a white card, invisible as a track), and
+ * scaleX over width so the fill animates on a GPU layer instead of forcing
+ * layout on every statistics refresh. */
+.schedule-stat-row__track {
+  height: var(--space-2);
+  background-color: var(--color-fill-well);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.schedule-stat-row__fill {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background-color: var(--schedule-color);
+  transform: scaleX(var(--bar-scale, 0));
+  transform-origin: left center;
+  transition: transform var(--transition-slow);
+}
+
+[dir='rtl'] .schedule-stat-row__fill {
+  transform-origin: right center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .schedule-stat-row__fill {
+    transition: none;
+  }
+}
+
+.schedule-stat-total {
+  justify-content: space-between;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .schedule-page input[type="month"] { color-scheme: dark; }
+}
+
+:root[data-theme="dark"] .schedule-page input[type="month"] { color-scheme: dark; }
+
+@media (max-width: 639px) {
+  .schedule-stat-filters { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Desktop follows the shared full-width module shell.  The Schedule page
+ * used to opt into the narrow reading measure and then split its only content
+ * panel into two columns, leaving the right half of desktop screens empty. */
+@container schedule-page (min-width: 720px) {
+  .schedule-library--shifts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .schedule-library--shifts > h2 {
+    grid-column: 1 / -1;
+  }
+
+  .schedule-library--shifts .schedule-details {
+    margin-block-end: 0;
+  }
+
+  /* S-26 (UX-Audit): an open card in a 2-column CSS grid pushes only its own
+   * row taller - the sibling sharing that row (and everything below) jumps
+   * sideways/down as columns re-balance, reading as a layout glitch rather
+   * than an intentional expand. Spanning both columns while open keeps every
+   * OTHER card's column position stable; only rows shift, which is the
+   * expected, unsurprising effect of something above growing taller. */
+  .schedule-library--shifts .schedule-details[open] {
+    grid-column: 1 / -1;
+  }
+}
+
+@container schedule-page (min-width: 900px) {
+  .schedule-stat-filters {
+    grid-template-columns: minmax(13rem, 19rem) minmax(22rem, 1fr) auto;
+    align-items: end;
+  }
+
+  .schedule-stat-filters > :first-child,
+  .schedule-stat-range,
+  .schedule-stat-filter-actions {
+    grid-column: auto;
+  }
+
+  .schedule-stat-dates {
+    grid-column: 1 / -1;
+  }
+
+  .schedule-stat-filter-actions {
+    justify-content: flex-end;
+  }
+
+  .schedule-stat-sections {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container schedule-page (max-width: 639px) {
+  .schedule-stat-dates {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+
+/* ---- Uebersicht-Tab: mehrere Personen nebeneinander ---- */
+
+.schedule-overview__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.schedule-overview__week-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.schedule-overview__week-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.schedule-overview__scroll {
+  overflow: auto;
+  max-height: 70vh;
+}
+
+.schedule-overview__grid {
+  display: flex;
+  align-items: flex-start;
+}
+
+.schedule-overview__day {
+  flex: 0 0 auto;
+}
+
+.schedule-overview__day + .schedule-overview__day {
+  margin-inline-start: var(--space-3);
+}
+
+.schedule-overview__gutter {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--color-surface);
+  padding-inline-end: var(--space-2);
+}
+
+.schedule-overview__gutter .schedule-overview__lane {
+  width: 44px;
+  min-width: 44px;
+}
+
+.schedule-overview__hour-label {
+  position: absolute;
+  inset-inline: 0;
+  transform: translateY(-50%);
+  font-size: var(--text-2xs);
+  color: var(--color-text-tertiary);
+  text-align: end;
+}
+
+.schedule-overview__hour-line {
+  position: absolute;
+  inset-inline: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.schedule-overview__day-head {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.schedule-overview__holidays:empty {
+  display: none;
+}
+
+.schedule-overview__holiday {
+  background: color-mix(in srgb, var(--holi-color) var(--tint-surface), var(--color-surface-work));
+  color: color-mix(in srgb, var(--holi-color) 38%, var(--color-text-primary));
+  border-inline-start: 3px solid var(--holi-color);
+  border-radius: var(--radius-xs);
+  padding: var(--space-0h) var(--space-1);
+  font-size: var(--text-xs);
+  margin-bottom: var(--space-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-overview__lanes {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.schedule-overview__lane {
+  min-width: 220px;
+}
+
+.schedule-overview__lane-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-1);
+}
+
+.schedule-overview__lane-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink-on-vivid);
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.schedule-overview__lane-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.schedule-overview__lane-name {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-overview__lane-body {
+  position: relative;
+  min-height: 48px;
+  background: var(--color-surface-2);
+  border-radius: var(--radius-xs);
+}
+
+.schedule-overview__block {
+  --schedule-color: var(--color-accent);
+  position: absolute;
+  inset-inline: var(--space-0h);
+  border-radius: var(--radius-xs);
+  padding: var(--space-0h) var(--space-1);
+  font-size: var(--text-xs);
+  background: color-mix(in srgb, var(--schedule-color) var(--tint-surface), var(--color-surface-work));
+  color: color-mix(in srgb, var(--schedule-color) 38%, var(--color-text-primary));
+  border-inline-start: 3px solid var(--schedule-color);
+  overflow: clip;
+  line-height: 1.3;
+  z-index: 1;
+}
+
+.schedule-overview__block--allday {
+  position: relative;
+  margin-bottom: var(--space-0h);
+  color: var(--color-text-tertiary);
+}
+
+.schedule-overview__block-title,
+.schedule-overview__block-time {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-overview__block-time {
+  opacity: .85;
+}
+
+@media print {
+  .schedule-tabs,
+  .schedule-today,
+  .schedule-reminder-settings,
+  .schedule-stat-filters,
+  .schedule-stat-filters .form-field,
+  .schedule-stat-filter-actions {
+    display: none !important;
+  }
+
+  .schedule-statistics {
+    display: block;
+  }
+
+  .schedule-stat-period {
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+  }
+
+  .schedule-stat-sections {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .card {
+    box-shadow: none;
+    border: 1px solid var(--color-border);
+  }
+}
+
+.schedule-cycle-hint {
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-2);
+}
+
+.schedule-wins-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-inline-start: var(--space-2);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  background-color: var(--color-fill-well);
+  color: var(--color-text-secondary);
+}
+
+.schedule-wins-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--module-accent, var(--color-accent));
+}
+
+.schedule-entry-row[role='button'],
+.schedule-overview__block[role='button'] {
+  cursor: pointer;
+}
+
+/* S-17: read-only Detail-Modal-Inhalt (schedule.js#renderScheduleEntryDetailContent) -
+ * dieselbe Kopfzeile wie shiftTypeCard()'s <summary> (Farbpunkt + Icon +
+ * Titel + kleine Uhrzeit), darunter Label/Wert-Zeilen. */
+.schedule-entry-detail__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.schedule-entry-detail__rows {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.schedule-entry-detail__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.schedule-entry-detail__row dt {
+  color: var(--color-text-secondary);
+  flex: 0 0 auto;
+}
+
+.schedule-entry-detail__row dd {
+  margin: 0;
+  min-width: 0;
+  text-align: end;
+}

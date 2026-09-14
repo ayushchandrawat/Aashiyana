@@ -1,0 +1,585 @@
+.housekeeping-page {
+  --module-accent: var(--module-housekeeping);
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+
+.housekeeping-check-small {
+  min-height: var(--target-lg);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+.housekeeping-check-small:disabled {
+  background: var(--color-surface-3);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
+  cursor: default;
+}
+
+.housekeeping-check-small:disabled i {
+  color: var(--color-success);
+}
+
+.housekeeping-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--kitchen-tabs-height, var(--sub-tabs-height));
+  padding: 0;
+  background: transparent;
+  border-bottom: 0;
+}
+
+.housekeeping-tab {
+  flex-shrink: 0;
+}
+
+.housekeeping-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-inline: var(--page-inline-pad);
+  padding-top: var(--space-4);
+  padding-bottom: calc(var(--space-16) + env(safe-area-inset-bottom));
+  container: housekeeping-page / inline-size;
+}
+
+@container housekeeping-page (max-width: 719px) {
+  .metric-grid--quad { --summary-cards: 2; }
+}
+
+@container housekeeping-page (max-width: 479px) {
+  .metric-card { padding: var(--space-2); }
+}
+
+.housekeeping-card,
+.housekeeping-worker-strip {
+  background-color: var(--color-surface);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.housekeeping-card {
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+
+.housekeeping-report-item {
+  background-color: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.housekeeping-report-item + .housekeeping-report-item {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.housekeeping-card h2 {
+  margin: 0 0 var(--space-3);
+}
+
+.housekeeping-worker-strip {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.housekeeping-worker-stack,
+.housekeeping-staff-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.housekeeping-worker-strip__identity {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.housekeeping-worker-strip__identity span,
+.housekeeping-muted {
+  color: var(--color-text-secondary);
+}
+
+.housekeeping-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  color: var(--color-text-on-accent);
+  display: grid;
+  place-items: center;
+  font-weight: var(--font-weight-bold);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  flex: 0 0 auto;
+}
+
+.housekeeping-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.housekeeping-avatar--lg {
+  width: 96px;
+  height: 96px;
+  border: 0;
+  font-size: var(--text-xl);
+}
+
+
+.housekeeping-section-heading span {
+  color: var(--color-text-secondary);
+}
+
+.housekeeping-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.housekeeping-section-heading h2 {
+  margin: 0;
+}
+
+.housekeeping-month-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.housekeeping-month-nav [hidden] { display: none !important; }
+
+.housekeeping-section-heading .housekeeping-month-nav__label {
+  min-width: 9.5rem;
+  text-align: center;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.housekeeping-month-nav__current {
+  padding: var(--space-1) var(--space-3);
+}
+
+.housekeeping-chart {
+  min-height: 126px;
+  display: flex;
+  align-items: end;
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding-top: var(--space-3);
+}
+
+.housekeeping-chart__bar-wrap {
+  min-width: 44px;
+  display: grid;
+  justify-items: center;
+  align-content: end;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.housekeeping-chart__value {
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.housekeeping-chart {
+  --chart-bar-height: 88px;
+}
+
+.housekeeping-chart__track {
+  width: 24px;
+  height: var(--chart-bar-height);
+  display: flex;
+  align-items: flex-end;
+  border-radius: var(--radius-full) var(--radius-full) 0 0;
+  background: var(--color-fill-well);
+  overflow: hidden;
+}
+
+.housekeeping-chart__bar {
+  width: 100%;
+  /* `scaleY` statt `height`: projektweite Konvention fuer Fuellstaende
+   * (budget/dashboard/tasks), vom frontend-audit erzwungen. */
+  height: 100%;
+  border-radius: inherit;
+  background: var(--chart-series-1);
+  transform-origin: bottom center;
+  transform: scaleY(var(--bar-scale, 0));
+}
+
+.housekeeping-field {
+  display: grid;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-semibold);
+}
+
+.housekeeping-field input,
+.housekeeping-field textarea,
+.housekeeping-field select {
+  width: 100%;
+  min-height: var(--target-lg);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--text-base);
+  padding: 0 var(--space-3);
+}
+
+.housekeeping-field textarea {
+  min-height: 120px;
+  padding: var(--space-3);
+  resize: vertical;
+}
+
+.housekeeping-field--inline {
+  min-width: 180px;
+}
+
+.housekeeping-field--color input {
+  padding: var(--space-1);
+}
+
+.housekeeping-task-form,
+.housekeeping-report-form,
+.housekeeping-worker-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.housekeeping-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 132px;
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.housekeeping-form-grid--wide {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.housekeeping-form-submit {
+  min-height: var(--target-lg);
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.housekeeping-template-list {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+}
+
+.housekeeping-template {
+  min-width: 180px;
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  padding: var(--space-3);
+  text-align: left;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.housekeeping-template small {
+  color: var(--color-text-secondary);
+}
+
+.housekeeping-task-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.housekeeping-reports {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.housekeeping-task {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: var(--space-3);
+  align-items: center;
+  min-height: 88px;
+  padding: var(--space-3);
+}
+
+.housekeeping-task--today {
+  background-color: color-mix(in srgb, var(--color-warning) var(--tint-wash), transparent);
+}
+
+.housekeeping-task--overdue {
+  background-color: color-mix(in srgb, var(--color-danger) var(--tint-wash), transparent);
+}
+
+.housekeeping-task__check {
+  width: 52px;
+  height: 52px;
+  border: 2px solid var(--module-accent);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--module-accent) var(--tint-surface), var(--color-surface));
+  color: var(--module-accent);
+  display: grid;
+  place-items: center;
+}
+
+.housekeeping-task__body h2 {
+  margin: 0;
+}
+
+.housekeeping-task__body p {
+  margin: var(--space-1) 0;
+  color: var(--color-text-secondary);
+}
+
+.housekeeping-task__body span {
+  font-weight: var(--font-weight-bold);
+}
+
+.housekeeping-task__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.housekeeping-loading {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.housekeeping-photo {
+  min-height: 72px;
+  border: 1.5px dashed color-mix(in srgb, var(--module-accent) var(--tint-hint), var(--color-border));
+  border-radius: var(--radius-md);
+  color: var(--module-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-semibold);
+}
+
+.housekeeping-photo input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+}
+
+.housekeeping-photo-preview {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.housekeeping-report-item {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3);
+}
+
+.housekeeping-report-item--visit {
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+}
+
+.housekeeping-report-item--visit .housekeeping-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: transparent;
+}
+
+.housekeeping-report-item img,
+.housekeeping-report-item > svg {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  color: var(--color-text-secondary);
+  background: var(--color-fill-well);
+}
+
+.housekeeping-report-item div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.housekeeping-report-item span {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.housekeeping-report-modal {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.housekeeping-report-details {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.housekeeping-report-details div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.housekeeping-report-details dt {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.housekeeping-report-details dd {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+  text-align: right;
+}
+
+.housekeeping-staff-row {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background-color: transparent;
+}
+
+.housekeeping-staff-row[data-select-worker] {
+  cursor: pointer;
+}
+
+.housekeeping-staff-row[data-select-worker]:hover,
+.housekeeping-staff-row:has(> .housekeeping-staff-row__select:focus-visible),
+.housekeeping-staff-row--active {
+  border-color: var(--module-accent);
+  background-color: color-mix(in srgb, var(--module-accent) var(--tint-state), var(--color-surface-hover));
+}
+
+.housekeeping-staff-row__select {
+  display: grid;
+  gap: var(--space-0h);
+  min-width: 0;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.housekeeping-staff-row span {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.housekeeping-profile-editor {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.housekeeping-profile-editor__fields {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.housekeeping-staff-log {
+  margin-top: var(--space-3);
+}
+
+.housekeeping-staff-log-list {
+  display: grid;
+  margin-inline: calc(-1 * var(--space-4));
+}
+
+.housekeeping-staff-log-list > * {
+  padding-inline: var(--space-4);
+}
+
+.housekeeping-staff-log-row + .housekeeping-staff-log-row {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.modal-panel .document-dropzone {
+  min-height: 132px;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+}
+
+.modal-panel .document-dropzone__title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+@media (max-width: 767px) {
+
+  .housekeeping-form-grid,
+  .housekeeping-form-grid--wide,
+  .housekeeping-profile-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .housekeeping-avatar--lg {
+    width: 84px;
+    height: 84px;
+  }
+
+  .housekeeping-worker-strip {
+    grid-template-columns: 48px 1fr;
+  }
+
+  .housekeeping-worker-strip .housekeeping-check-small {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
+  .housekeeping-section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+}
+
+@media (max-width: 639px) {
+  .housekeeping-check-small {
+    gap: var(--space-2);
+  }
+}

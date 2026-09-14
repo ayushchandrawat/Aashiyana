@@ -1,0 +1,498 @@
+.birthdays-page {
+  --module-accent: var(--module-birthdays);
+  --c-accent: var(--active-module-accent, var(--module-birthdays));
+  /* Page geometry (width, gutters, header/body axis) comes from
+   * PAGE-COMPOSITION.md / .app-page--reading — not from this file. */
+  display: flex;
+  flex-direction: column;
+  /* Full-bleed root; bottom clearance for nav + FAB. */
+  padding-bottom: calc(var(--nav-bottom-height) + var(--space-6));
+}
+
+/* Hint copy only — measure/gutter live on .page-section.page-measure. */
+.birthdays-hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.birthdays-list {
+  container-name: birthdays-list list-rows;
+}
+
+
+.birthdays-list > * + * {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+
+.birthday-item--today {
+  background: color-mix(in srgb, var(--module-accent) var(--tint-surface), var(--color-surface));
+}
+
+.birthday-item__name {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  unicode-bidi: plaintext;
+}
+
+.birthday-cake {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--module-accent);
+}
+
+.birthday-item__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  unicode-bidi: plaintext;
+}
+
+.birthday-item__meta > * + *::before {
+  content: '·';
+  margin-inline-end: var(--space-1);
+  color: var(--color-text-tertiary);
+}
+
+.birthday-item__meta > .birthday-chip {
+  flex-shrink: 0;
+}
+
+.birthday-item__when {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.birthday-item__name-day {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.birthday-item__notes {
+  display: none;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: plaintext;
+}
+
+@container birthdays-list (min-width: 560px) {
+  .birthday-item__notes {
+    display: block;
+  }
+}
+
+/* A birthday plus a name day can overflow the metadata row on a narrow card.
+ * Wider layouts keep both dates inline; below 840px the name day gets its own
+ * wrapping row. Notes remain the least important metadata, matching the
+ * original mobile rule, so they yield the space first. */
+@container birthdays-list (max-width: 840px) {
+  .birthday-item__meta--with-name-day {
+    flex-wrap: wrap;
+  }
+
+  .birthday-item__meta--with-name-day > .birthday-item__name-day {
+    flex-basis: 100%;
+    min-width: 0;
+    white-space: normal;
+  }
+
+  .birthday-item__meta--with-name-day > .birthday-item__name-day::before {
+    content: none;
+    margin-inline-end: 0;
+  }
+
+  .birthday-item__meta--with-name-day > .birthday-item__notes {
+    display: none;
+  }
+}
+
+.birthday-item__actions {
+  display: flex;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+@media (hover: none) {
+  .birthday-item__actions {
+    position: absolute;
+    width: var(--space-px);
+    height: var(--space-px);
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .birthday-item__actions:focus-within {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+  }
+
+  .birthday-item {
+    padding-inline-end: calc(var(--space-2) + var(--space-3) + var(--space-2));
+  }
+}
+
+.birthday-chip {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.birthday-chip--default {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.birthday-chip--soon {
+  color: var(--color-text-primary);
+}
+
+.birthday-chip--today {
+  background: var(--module-accent);
+  color: var(--color-ink-on-vivid);
+  padding: var(--space-0h) var(--space-2);
+  border-radius: var(--radius-full);
+}
+
+/* --------------------------------------------------------
+ * Avatare
+ * -------------------------------------------------------- */
+.birthday-avatar {
+  width: var(--target-md);
+  height: var(--target-md);
+  border-radius: var(--radius-full);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.birthday-avatar--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-fill-well);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-bold);
+}
+
+
+/* --------------------------------------------------------
+ * Modal
+ * -------------------------------------------------------- */
+.birthday-avatar-editor {
+  width: 84px;
+  height: 84px;
+  margin: 0 auto var(--space-2);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Theme-aware statt hartcodiertem white. */
+  background: color-mix(in srgb, var(--module-accent) var(--tint-surface), var(--color-surface));
+  cursor: pointer;
+}
+
+.birthday-preview__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.birthday-preview__fallback {
+  color: color-mix(in srgb, var(--module-accent) var(--tint-ink), var(--color-text-primary));
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-bold);
+}
+
+.birthday-modal__photo-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: center;
+}
+
+.birthday-modal__photo-action {
+  width: var(--target-base);
+  height: var(--target-base);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.birthday-modal__photo-action:hover {
+  background: var(--color-surface-hover);
+}
+
+.birthday-modal__photo-action svg {
+  width: 16px;
+  height: 16px;
+}
+
+.birthday-modal__photo-action--danger {
+  color: var(--color-danger);
+}
+
+.birthday-modal__identity {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.birthday-modal__photo-wrap {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.birthday-modal__fields {
+  flex: 1;
+  min-width: 0;
+}
+
+.birthday-modal__select {
+  min-height: var(--target-base);
+}
+
+.birthday-name-day__controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 0.55fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.birthday-name-day__clear {
+  min-height: var(--target-base);
+  white-space: nowrap;
+}
+
+.birthday-name-day__clear svg {
+  width: 16px;
+  height: 16px;
+}
+
+.birthday-name-day__hint {
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.birthday-modal__hint {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.birthday-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.birthday-modal__footer-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+/* --------------------------------------------------------
+ * Responsive
+ * -------------------------------------------------------- */
+@media (max-width: 639px) {
+  .birthday-modal__identity {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .birthday-modal__photo-wrap {
+    align-self: center;
+  }
+
+  .birthday-name-day__controls {
+    grid-template-columns: minmax(0, 1fr) minmax(88px, 0.7fr);
+  }
+
+  .birthday-name-day__clear {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+
+/* --------------------------------------------------------
+ * Import aus Kontakten (#518)
+ * -------------------------------------------------------- */
+.birthdays-toolbar__import {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+.birthdays-toolbar__import i {
+  width: 16px;
+  height: 16px;
+}
+
+.bd-import__intro {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-3);
+}
+
+.bd-import__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 48vh;
+  overflow-y: auto;
+  margin: 0 calc(-1 * var(--space-1));
+  padding: 0 var(--space-1);
+}
+
+.bd-import-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--target-base);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: background-color var(--duration-sm) ease;
+}
+
+.bd-import-row:hover,
+.bd-import-row:focus-within {
+  background: var(--color-surface-hover);
+}
+
+.bd-import-row input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--module-accent);
+  cursor: pointer;
+}
+
+.bd-import-row__name {
+  flex: 1 1 auto;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bd-import-row__date {
+  flex: none;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.bd-import-row--done {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.bd-import-row--done:hover {
+  background: transparent;
+}
+
+.bd-import-row__check {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--module-accent);
+}
+
+.bd-import-row__check i {
+  width: 16px;
+  height: 16px;
+}
+
+.bd-import-row__badge {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--color-ink-on-vivid);
+  background: var(--module-accent);
+  padding: var(--space-0h) var(--space-2);
+  border-radius: var(--radius-full);
+}
+
+
+.bd-import__without {
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-3);
+}
+
+.bd-import__without summary {
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.bd-import__without-hint {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+  margin: var(--space-2) 0;
+}
+
+.bd-import__without-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+}
+
+.bd-import__without-name {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.bd-import__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  /* Umbruch statt Quetschen - Begruendung an `.modal-panel__footer`
+   * (layout.css, #872). */
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+@media (max-width: 639px) {
+  .birthdays-toolbar__import span {
+    display: none;
+  }
+
+  .birthdays-toolbar__import {
+    width: var(--target-base);
+    height: var(--target-base);
+    padding: 0;
+    flex-shrink: 0;
+    justify-content: center;
+  }
+}

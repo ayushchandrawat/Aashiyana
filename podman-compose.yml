@@ -1,0 +1,103 @@
+# Podman Compose Manifest for Aashiyana
+# RHEL / Fedora / CentOS Stream — rootless + SELinux
+#
+# Usage:
+#   podman compose -f podman-compose.yml up -d
+#
+# or:
+#   podman-compose -f podman-compose.yml up -d
+#
+# Podman Compose automatically uses this manifest when Podman is available.
+#
+# Differences from docker-compose.yml:
+#   - Bind mounts use :Z for private SELinux relabeling. This is required when
+#     SELinux is enforcing, otherwise access to /data, /backups, etc. may fail.
+#   - The host bind address can be configured through AASHIYANA_HTTP_BIND.
+#     Default: 0.0.0.0
+#   - For rootless Podman behind a reverse proxy, use:
+#       AASHIYANA_HTTP_BIND=127.0.0.1
+
+services:
+  aashiyana:
+    image: ghcr.io/ayushchandrawat/aashiyana:latest
+    build: .                          # Optional: use --build to build locally
+    container_name: aashiyana
+    restart: unless-stopped
+
+    ports:
+      # Host bind address and port are configurable through .env.
+      # The application listens on port 3000 inside the container.
+      #
+      # Example:
+      #   AASHIYANA_HTTP_BIND=127.0.0.1
+      #   AASHIYANA_HTTP_PORT=8090
+      #
+      # Then access Aashiyana at:
+      #   http://127.0.0.1:8090
+      - "${AASHIYANA_HTTP_BIND:-0.0.0.0}:${AASHIYANA_HTTP_PORT:-8090}:3000"
+
+    volumes:
+      # :Z enables private SELinux relabeling for this container.
+      # Use this when the directories are exclusively used by Aashiyana.
+      - ${DATA_DIR:-./data}:/data:Z
+      - ${BACKUP_DIR:-./backups}:/backups:Z
+
+      # Aashiyana modules.
+      # Add custom modules to ./modules or configure MODULES_DIR
+      # in the .env file.
+      - ${MODULES_DIR:-./modules}:/app/modules:Z
+
+      # Optional local document storage.
+      #
+      # Both paths are configurable through .env:
+      #   DOCUMENT_STORAGE_LOCAL_DIR   = host directory
+      #   DOCUMENT_STORAGE_LOCAL_PATH  = container directory
+      #
+      # This ensures uploaded documents remain persistent across
+      # container recreation or image updates.
+      - ${DOCUMENT_STORAGE_LOCAL_DIR:-./documents}:${DOCUMENT_STORAGE_LOCAL_PATH:-/documents}:Z
+
+    # The installer creates the .env file automatically.
+    env_file:
+      - .env
+
+    environment:
+      - NODE_ENV=production
+      - DB_PATH=${DB_PATH:-/data/aashiyana.db}
+      - BACKUP_DIR=/backups
+
+      # Optional local document storage.
+      # Set to true to store uploaded documents in the mounted
+      # /documents directory.
+      - DOCUMENT_STORAGE_LOCAL_ENABLED=${DOCUMENT_STORAGE_LOCAL_ENABLED:-false}
+      - DOCUMENT_STORAGE_LOCAL_PATH=${DOCUMENT_STORAGE_LOCAL_PATH:-/documents}
+
+      # Secure cookie configuration.
+      #
+      # Reverse proxy + HTTPS:
+      #   SESSION_SECURE=true
+      #   TRUST_PROXY=1
+      #
+      # Direct HTTP access:
+      #   SESSION_SECURE=false
+      #   TRUST_PROXY=loopback
+      #
+      # Default:
+      #   SESSION_SECURE=false
+      #
+      # This keeps direct HTTP access working when running Aashiyana
+      # without a reverse proxy.
+      - SESSION_SECURE=${SESSION_SECURE:-false}
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

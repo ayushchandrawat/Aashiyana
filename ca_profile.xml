@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!-- Unraid Community Applications REPOSITORY profile. Not an app template
+     (that is templates/aashiyana.xml): CA reads this file from the repo root to
+     render the repository entry (description, icon, link) in its store.
+     Referenced by the CA registration of this GitHub repository. -->
+<CommunityApplications>
+  <!-- Repository overview shown in Community Apps. Markdown supported. -->
+  <Profile>
+**Aashiyana** - the self-hosted family planner PWA.
+
+A private, offline-capable web app that keeps your household organized - tasks, groceries, meals, recipes, pantry stock, calendar, shift schedules, documents, budget, health, rewards, inventory, housekeeping, notes, contacts, birthdays and more - in one place, without cloud accounts or subscriptions.
+
+This repository ships the official Docker template for Aashiyana. The image is published to GitHub Container Registry at `ghcr.io/AyushChandrawat/aashiyana`.
+
+**Support:** open an issue at https://github.com/AyushChandrawat/Aashiyana/issues
+  </Profile>
+  <!-- Repository icon -->
+  <Icon>https://raw.githubusercontent.com/AyushChandrawat/Aashiyana/main/icon.svg</Icon>
+  <!-- Project web page -->
+  <WebPage>https://github.com/AyushChandrawat/Aashiyana</WebPage>
+</CommunityApplications>

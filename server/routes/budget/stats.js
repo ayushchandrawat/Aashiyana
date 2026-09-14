@@ -1,0 +1,104 @@
+
+import express from 'express';
+import { createLogger } from '../../logger.js';
+import * as db from '../../db.js';
+import { bookedOnly, computeStatsRange, cents, budgetFilter, budgetCategoryExpr, todayLocalDateKey, STATS_RANGES, DATE_RE } from './helpers.js';
+import { BUDGET_SAVINGS_KEY } from './plans.js';
+
+const log = createLogger('Budget');
+const router = express.Router();
+
+export function computeStats(database, { range, anchor }, filter = { clause: '', params: [] },
+                             categoryExpr = { expr: 'category', params: [] }) {
+  const r = computeStatsRange(range, anchor);
+  const f = filter && filter.clause ? filter : { clause: '', params: [] };
+  const c = categoryExpr && categoryExpr.expr ? categoryExpr : { expr: 'category', params: [] };
+
+  const totalsRow = database.prepare(`
+    SELECT
+      COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS income,
+      COALESCE(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END), 0) AS expenses,
+      COALESCE(SUM(amount), 0) AS balance
+    FROM budget_entries WHERE date BETWEEN ? AND ?${f.clause}${bookedOnly()}
+  `).get(r.from, r.to, ...f.params);
+
+  const prevRow = database.prepare(`
+    SELECT
+      COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS income,
+      COALESCE(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END), 0) AS expenses,
+      COALESCE(SUM(amount), 0) AS balance
+    FROM budget_entries WHERE date BETWEEN ? AND ?${f.clause}${bookedOnly()}
+  `).get(r.prevFrom, r.prevTo, ...f.params);
+
+
+
+
+  const byCategory = database.prepare(`
+    SELECT ${c.expr} AS category,
+           COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS income,
+           COALESCE(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END), 0) AS expenses,
+           COALESCE(SUM(amount), 0) AS total
+    FROM budget_entries WHERE date BETWEEN ? AND ?${f.clause}${bookedOnly()}
+
+
+    GROUP BY 1 ORDER BY ABS(SUM(amount)) DESC
+  `).all(...c.params, r.from, r.to, ...f.params);
+
+
+  const keyExpr = r.granularity === 'month' ? "substr(date, 1, 7)" : "date";
+  const rawSeries = database.prepare(`
+    SELECT ${keyExpr} AS period,
+           COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS income,
+           COALESCE(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END), 0) AS expenses,
+           COALESCE(SUM(amount), 0) AS balance
+    FROM budget_entries WHERE date BETWEEN ? AND ?${f.clause}${bookedOnly()}
+    GROUP BY period
+  `).all(r.from, r.to, ...f.params);
+
+  const byPeriod = new Map(rawSeries.map((row) => [row.period, row]));
+  const series = r.bucketKeys.map((period) =>
+    byPeriod.get(period) || { period, income: 0, expenses: 0, balance: 0 });
+
+
+
+
+
+
+  const plans = {};
+  for (const row of database.prepare('SELECT category, amount FROM budget_plans').all()) {
+    if (row.category === BUDGET_SAVINGS_KEY) continue;
+    plans[row.category] = cents(row.amount);
+  }
+
+  return {
+    range: r.range, from: r.from, to: r.to,
+    totals: { income: totalsRow.income, expenses: totalsRow.expenses, balance: totalsRow.balance },
+    series,
+    byCategory,
+    comparison: { income: prevRow.income, expenses: prevRow.expenses, balance: prevRow.balance },
+    plans,
+  };
+}
+
+export function statsHandler(req, res) {
+  try {
+    const range  = req.query.range || 'month';
+    const anchor = req.query.anchor || todayLocalDateKey();
+    if (!STATS_RANGES.has(range))
+      return res.status(400).json({ error: 'range muss week|month|year sein', code: 400 });
+    if (!DATE_RE.test(anchor))
+      return res.status(400).json({ error: 'anchor muss YYYY-MM-DD sein', code: 400 });
+
+    res.json({
+      data: computeStats(db.get(), { range, anchor },
+        budgetFilter(req, 'budget_entries'), budgetCategoryExpr(req, 'budget_entries')),
+    });
+  } catch (err) {
+    log.error('', err);
+    res.status(500).json({ error: 'Internal error', code: 500 });
+  }
+}
+
+router.get('/stats', statsHandler);
+
+export default router;

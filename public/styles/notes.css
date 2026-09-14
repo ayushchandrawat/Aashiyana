@@ -1,0 +1,569 @@
+
+/* --------------------------------------------------------
+ * Modul-Akzent
+ * -------------------------------------------------------- */
+.notes-page { --module-accent: var(--module-notes); }
+
+/* --------------------------------------------------------
+ * Seiten-Layout
+ * -------------------------------------------------------- */
+.notes-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  /* overflow:clip inside overflow:auto (.app-content) triggers iOS WebKit blank-screen on scroll.
+   * overflow:hidden provides identical clipping without the compositor bug. */
+  overflow: hidden;
+}
+
+.notes-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-inline: var(--page-inline-pad);
+  container: notes-page / inline-size;
+}
+
+@media (min-width: 1024px) {
+  .notes-page { height: 100%; }
+}
+
+/* --------------------------------------------------------
+ * Header / Toolbar
+ * -------------------------------------------------------- */
+/* Layout only — control visual lives in page-search.css (shared). */
+.notes-toolbar__search {
+  flex: 1 1 0;
+  max-width: 280px;
+  margin-inline-start: auto;
+}
+
+.notes-toolbar .page-toolbar__title {
+  flex: 0 0 auto;
+}
+
+/* --------------------------------------------------------
+ * Masonry-Grid
+ * -------------------------------------------------------- */
+.notes-filters {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  padding-inline: var(--page-inline-pad);
+  border-bottom: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--module-accent) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.notes-filters::-webkit-scrollbar { height: 10px; }
+.notes-filters::-webkit-scrollbar-track { background: transparent; }
+.notes-filters::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--module-accent) var(--tint-hint), transparent);
+  border: 3px solid transparent;
+  border-radius: var(--radius-full);
+  background-clip: padding-box;
+}
+
+.notes-filters[hidden] {
+  display: none;
+}
+
+.notes-filter-group {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Both groups keep their width; the outer row owns scrolling. An independently
+ * shrinking category scroller becomes zero-width beside a long creator group. */
+
+.notes-filter-group + .notes-filter-group {
+  padding-inline-start: var(--space-2);
+  border-inline-start: var(--space-px) solid var(--color-border-subtle);
+}
+
+.notes-grid {
+  padding-top: var(--space-4);
+  padding-bottom: calc(var(--space-16) + var(--space-8));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  align-items: start;
+  gap: var(--space-3);
+}
+
+.notes-group__title {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.notes-group__title:not(:first-child) {
+  margin-top: var(--space-4);
+}
+
+.notes-grid[aria-busy="true"] {
+  display: block;
+}
+
+@container notes-page (min-width: 520px) {
+  .notes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@container notes-page (min-width: 720px) {
+  .notes-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@container notes-page (min-width: 900px) {
+  .notes-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@container notes-page (min-width: 1200px) {
+  .notes-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+
+.notes-grid > .empty-state {
+  grid-column: 1 / -1;
+}
+
+@supports (grid-template-rows: masonry) {
+  .notes-grid { grid-template-rows: masonry; }
+}
+
+/* --------------------------------------------------------
+ * Notiz-Karte
+ * -------------------------------------------------------- */
+.note-card {
+  --note-action-bg: color-mix(in srgb, var(--color-text-primary) var(--tint-state), transparent);
+  --note-action-bg-hover: color-mix(in srgb, var(--color-text-primary) var(--tint-surface), transparent);
+  min-width: 0;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  cursor: pointer;
+  position: relative;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  background: color-mix(in srgb, var(--note-color, transparent) var(--tint-surface), var(--color-surface));
+  color: var(--color-text-primary);
+  border: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.note-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.note-card--pinned {
+  box-shadow: var(--shadow-md), 0 0 0 2px color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.note-card__pin {
+  position: absolute;
+  top: var(--space-2);
+  inset-inline-end: var(--space-2);
+  width: var(--target-base);
+  height: var(--target-base);
+  border-radius: var(--radius-full);
+  background: var(--note-action-bg);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast), background-color var(--transition-fast);
+  color: inherit;
+}
+
+.note-card__pin::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.note-card--pinned .note-card__pin {
+  opacity: 1;
+  pointer-events: auto;
+  background: var(--note-action-bg);
+}
+
+.note-card:hover .note-card__pin {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.note-card__pin:hover,
+.note-card__pin:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  background: var(--note-action-bg-hover);
+}
+
+.note-card__title {
+  margin-bottom: var(--space-1);
+  color: inherit;
+  padding-inline-end: var(--target-base);
+  overflow-wrap: anywhere;
+}
+
+.note-card__title,
+.note-card__content {
+  unicode-bidi: plaintext;
+}
+
+.note-card__categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.note-category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: var(--space-0h) var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-fill-well);
+  color: var(--color-text-secondary);
+}
+
+.note-category-badge__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.note-category-badge svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  flex: 0 0 auto;
+}
+
+.note-card__content {
+  font-size: var(--type-body);
+  line-height: var(--line-height-relaxed);
+  color: inherit;
+  word-break: break-word;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 12;
+  line-clamp: 12;
+  overflow: hidden;
+}
+
+.note-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--space-px) solid var(--color-border-subtle);
+}
+
+.note-category-editor__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.note-read__categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.note-category-selection {
+  min-height: var(--target-base);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding-block: 0;
+  padding-inline: var(--space-2) var(--space-0h);
+  border: var(--space-px) solid var(--color-border);
+  border-radius: var(--radius-full);
+  border-color: var(--module-notes);
+  background: color-mix(in srgb, var(--module-notes) var(--tint-state), transparent);
+  color: var(--color-text-primary);
+}
+
+.note-category-selection > svg {
+  width: var(--icon-md);
+  height: var(--icon-md);
+  flex-shrink: 0;
+}
+
+.note-category-selection__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-category-selection__remove {
+  display: grid;
+  place-items: center;
+  width: var(--target-md);
+  height: var(--target-md);
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.note-category-selection__remove:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+.note-category-selection__remove:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+.note-category-selection__remove svg { width: var(--icon-md); height: var(--icon-md); }
+
+.note-category-picker { position: relative; }
+.note-category-picker__combobox { position: relative; }
+
+.note-category-picker__list {
+  position: absolute;
+  z-index: var(--z-dropdown);
+  inset: calc(100% + var(--space-1)) 0 auto;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: var(--space-1);
+  border: var(--space-px) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--shadow-md);
+}
+
+.note-category-picker__list[hidden] { display: none; }
+
+.note-category-picker__option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--target-base);
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  text-align: start;
+  cursor: pointer;
+}
+
+.note-category-picker__option:hover,
+.note-category-picker__option.is-active { background: var(--color-surface-hover); }
+.note-category-picker__option svg { width: var(--icon-md); height: var(--icon-md); color: var(--color-text-secondary); }
+.note-category-picker__scope { color: var(--color-text-tertiary); font-size: var(--text-xs); }
+
+.note-category-editor__scope {
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.note-category-editor__scope .form-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.note-category-editor__create {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.note-category-editor__create[hidden] { display: none; }
+
+@media (max-width: 639px) {
+  .notes-manage-categories {
+    width: var(--target-base);
+    height: var(--target-base);
+  }
+  .notes-manage-categories span { display: none; }
+  .notes-filter-group + .notes-filter-group {
+    padding-inline-start: 0;
+    border-inline-start: 0;
+  }
+  .note-category-editor__create { align-items: stretch; }
+  .note-category-editor__scope { flex: 1 1 100%; }
+  .note-category-editor__scope .form-input { flex: 1; }
+  .note-category-editor__create > .btn { width: 100%; }
+}
+
+.note-card__creator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.note-card__avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--avatar-color, var(--color-accent));
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.note-card__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.note-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.note-card__open,
+.note-card__delete {
+  width: var(--target-base);
+  height: var(--target-base);
+  border-radius: var(--radius-full);
+  background: var(--note-action-bg);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  color: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast), background-color var(--transition-fast);
+}
+
+.note-card__open::before,
+.note-card__delete::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.note-card:hover .note-card__open,
+.note-card:hover .note-card__delete,
+.note-card__open:focus-visible,
+.note-card__delete:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.note-card__open:hover {
+  background: var(--note-action-bg-hover);
+}
+
+.note-card__delete:hover {
+  background: var(--color-danger-light);
+  color: var(--color-danger-ink);
+}
+
+@media (pointer: coarse) {
+  .note-card__pin,
+  .note-card__open,
+  .note-card__delete {
+    opacity: 1;
+  pointer-events: auto;
+  }
+}
+
+
+/* --------------------------------------------------------
+ * Notes-Modal Content-Styles (Overlay/Panel via shared modal.js)
+ * -------------------------------------------------------- */
+
+.note-mode-switch {
+  display: inline-flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+.note-read-view {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--note-color, transparent) var(--tint-surface), transparent);
+  border: 1px solid color-mix(in srgb, var(--note-color, transparent) var(--tint-hint), transparent);
+}
+
+.note-read__body {
+  font-size: var(--type-body);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-primary);
+  word-break: break-word;
+  unicode-bidi: plaintext;
+}
+
+.note-read__empty {
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+/* Sanfter Moduswechsel (Product-Motion: 150–250 ms Zustandswechsel). */
+@keyframes notePaneEnter {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.note-pane--enter {
+  animation: notePaneEnter 160ms var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .note-pane--enter { animation: none; }
+}
+
+/* Farb-Auswahl */
+.note-color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.note-color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  position: relative;
+  cursor: pointer;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.note-color-swatch::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: var(--radius-full);
+}
+
+.note-color-swatch:hover       { transform: scale(1.15); }
+.note-color-swatch--active     { border-color: var(--color-text-primary); transform: scale(1.1); }

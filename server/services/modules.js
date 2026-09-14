@@ -1,0 +1,425 @@
+/**
+ * Module: Third-party module registry
+ * Purpose: Discover Aashiyana modules from /modules, validate manifests, and expose enabled client modules.
+ * Dependencies: node:fs/promises, server/db.js
+ */
+
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import * as db from '../db.js';
+import { createLogger } from '../logger.js';
+import { getSupportedLocales } from '../utils/i18n.js';
+import { normalizeCapabilities, buildExtensionCatalog, MODULE_ID_RE as ID_RE } from './module-capabilities.js';
+import { setExtensionScopeModules } from '../scopes.js';
+import { setExtensionPermissionCatalog } from '../permissions.js';
+
+const log = createLogger('Modules');
+
+const MODULES_DIR = path.resolve(process.env.MODULES_DIR || path.join(import.meta.dirname, '..', '..', 'modules'));
+const DISABLED_KEY = 'third_party_disabled_modules';
+
+
+// test/test-modules.js besteht darauf. Neue OPTIONALE Felder brauchen keine
+
+export const SUPPORTED_MANIFEST_VERSION = 1;
+
+const SAFE_RELATIVE_RE = /^[a-zA-Z0-9][a-zA-Z0-9._/-]*$/;
+const MENU_LABEL_KEY_RE = /^[a-z][a-z0-9._-]{0,79}$/;
+const MODULE_LOCALE_FILE_RE = /^([a-z]{2,3})\.json$/;
+const EXTENSION_DEFAULT_LOCALE = 'en';
+
+/** Sync cache for permissions/scopes — refreshed on each listModules(). */
+let _extensionCatalog = {
+  permissionModules: [],
+  permissionWidgets: [],
+  scopeModules: [],
+};
+
+function cfgGet(key) {
+  const row = db.get().prepare('SELECT value FROM sync_config WHERE key = ?').get(key);
+  return row ? row.value : null;
+}
+
+function cfgSet(key, value) {
+  db.get().prepare(`
+    INSERT INTO sync_config (key, value)
+    VALUES (?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value,
+                                   updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+  `).run(key, value);
+}
+
+function parseDisabledModules() {
+  try {
+    const parsed = JSON.parse(cfgGet(DISABLED_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function setDisabledModules(ids) {
+  const unique = [...new Set((Array.isArray(ids) ? ids : []).filter((id) => typeof id === 'string' && ID_RE.test(id)))];
+  cfgSet(DISABLED_KEY, JSON.stringify(unique));
+  return unique;
+}
+
+function isSafeRelativeFile(value) {
+  if (typeof value !== 'string' || !SAFE_RELATIVE_RE.test(value)) return false;
+  if (value.includes('..') || value.startsWith('/') || value.includes('\\')) return false;
+  return true;
+}
+
+function modulePublicUrl(id, relPath) {
+  return `/api/v1/modules/assets/${encodeURIComponent(id)}/${relPath.split('/').map(encodeURIComponent).join('/')}`;
+}
+
+
+
+
+export function normalizeManifest(raw, folderName) {
+  const manifest = raw && typeof raw === 'object' ? raw : {};
+  const id = String(manifest.id || folderName || '').trim();
+  if (!ID_RE.test(id)) throw new Error('module.json must define a lowercase id using letters, numbers and hyphens.');
+  if (id !== folderName) throw new Error('module id must match the folder name.');
+
+
+  //
+
+
+
+
+
+
+
+  //
+
+
+
+  //
+
+
+
+
+
+  // wer wen ueberholt hat.
+  const rawManifestVersion = manifest.manifestVersion;
+  const manifestVersion = rawManifestVersion === undefined || rawManifestVersion === null
+    ? SUPPORTED_MANIFEST_VERSION
+    : Number(rawManifestVersion);
+  if (!Number.isInteger(manifestVersion) || manifestVersion < 1) {
+    throw new Error('module.json manifestVersion must be a positive integer.');
+  }
+  if (manifestVersion > SUPPORTED_MANIFEST_VERSION) {
+    throw new Error(
+      `module.json declares manifestVersion ${manifestVersion}, but this Aashiyana supports up to `
+      + `${SUPPORTED_MANIFEST_VERSION}. Update Aashiyana, or use a build of the module for this version.`,
+    );
+  }
+
+  const entry = String(manifest.entry || '').trim();
+  if (!isSafeRelativeFile(entry) || !entry.endsWith('.js')) {
+    throw new Error('module.json entry must be a safe relative JavaScript file path.');
+  }
+
+  const style = manifest.style ? String(manifest.style).trim() : '';
+  if (style && (!isSafeRelativeFile(style) || !style.endsWith('.css'))) {
+    throw new Error('module.json style must be a safe relative CSS file path.');
+  }
+
+  const name = String(manifest.name || id).trim().slice(0, 80);
+  const version = String(manifest.version || '').trim().slice(0, 40);
+  const description = String(manifest.description || '').trim().slice(0, 240);
+  const icon = String(manifest.icon || 'box').trim().slice(0, 40);
+  const accent = /^#[0-9a-fA-F]{6}$/.test(manifest.accent || '') ? manifest.accent : '#6366F1';
+  const menu = manifest.menu && typeof manifest.menu === 'object' ? manifest.menu : {};
+  const showInMenu = menu.show !== false;
+  let menuLabelKey = menu.labelKey ? String(menu.labelKey).trim().slice(0, 80) : null;
+  if (menuLabelKey && !MENU_LABEL_KEY_RE.test(menuLabelKey)) {
+    throw new Error('menu.labelKey is invalid.');
+  }
+  const label = String(menu.label || name).trim().slice(0, 40);
+  const menuIcon = String(menu.icon || icon).trim().slice(0, 40);
+  const order = Number.isFinite(Number(menu.order)) ? Number(menu.order) : 1000;
+  const pathValue = String(menu.path || `/m/${id}`).trim();
+  const routePath = pathValue === `/m/${id}` ? pathValue : `/m/${id}`;
+
+  const COMPOSITION = new Set(['reading', 'data', 'dashboard', 'form', 'split', 'full']);
+  const WIDTHS = new Set(['reading', 'content', 'wide']);
+  const pageRaw = manifest.page && typeof manifest.page === 'object' ? manifest.page : {};
+  const composition = COMPOSITION.has(String(pageRaw.composition || '').trim())
+    ? String(pageRaw.composition).trim()
+    : 'reading';
+  const width = WIDTHS.has(String(pageRaw.width || '').trim())
+    ? String(pageRaw.width).trim()
+    : (composition === 'data' ? 'content' : composition === 'dashboard' ? 'wide' : 'reading');
+
+
+
+
+
+  const NAVIGATION = new Set(['standard']);
+  const RESPONSIVE = new Set(['standard']);
+  const navigation = NAVIGATION.has(String(pageRaw.navigation || '').trim())
+    ? String(pageRaw.navigation).trim()
+    : 'standard';
+  const responsive = RESPONSIVE.has(String(pageRaw.responsive || '').trim())
+    ? String(pageRaw.responsive).trim()
+    : 'standard';
+
+  return {
+    id,
+    name,
+    version,
+
+
+
+    manifestVersion,
+    description,
+    icon,
+    accent,
+    entry,
+    style: style || null,
+    page: {
+      composition,
+      width,
+      navigation,
+      responsive,
+    },
+    route: {
+      path: routePath,
+      entry: modulePublicUrl(id, entry),
+      style: style ? modulePublicUrl(id, style) : null,
+    },
+    menu: {
+      show: showInMenu,
+      label,
+      ...(menuLabelKey ? { labelKey: menuLabelKey } : {}),
+      icon: menuIcon,
+      order,
+    },
+  };
+}
+
+async function scanModuleLocales(basePath) {
+  const dir = path.join(basePath, 'locales');
+  const supported = new Set(getSupportedLocales());
+  try {
+    const entries = await fs.readdir(dir);
+    return entries
+      .map((file) => file.match(MODULE_LOCALE_FILE_RE)?.[1])
+      .filter((loc) => loc && supported.has(loc))
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+function normalizeModuleI18n(rawI18n, availableLocales) {
+  const supported = getSupportedLocales();
+  const block = rawI18n && typeof rawI18n === 'object' ? rawI18n : {};
+  let defaultLocale = String(block.defaultLocale || EXTENSION_DEFAULT_LOCALE).trim();
+  if (!supported.includes(defaultLocale)) defaultLocale = EXTENSION_DEFAULT_LOCALE;
+  if (availableLocales.length) {
+    if (!availableLocales.includes(defaultLocale)) {
+      defaultLocale = availableLocales.includes(EXTENSION_DEFAULT_LOCALE)
+        ? EXTENSION_DEFAULT_LOCALE
+        : availableLocales[0];
+    }
+  }
+  return {
+    defaultLocale,
+    availableLocales,
+    coreLocales: supported,
+  };
+}
+
+function clientCapabilities(caps) {
+  if (!caps) return null;
+  return {
+    permissionModuleKey: caps.permissionModuleKey,
+    permissionModule: caps.permissionModule,
+    apiPrefix: caps.apiPrefix,
+    scopeKey: caps.scopeKey,
+    widgets: (caps.widgets || []).map((w) => ({
+      id: w.id,
+      shortId: w.shortId,
+      entry: w.entry,
+      label: w.label,
+      labelKey: w.labelKey || null,
+      icon: w.icon,
+      defaultSize: w.defaultSize,
+      defaultVisible: w.defaultVisible,
+      optionsSchema: w.optionsSchema,
+      moduleKey: w.moduleKey,
+    })),
+  };
+}
+
+async function pathExists(filePath) {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readModule(folderName, disabledSet) {
+  const basePath = path.join(MODULES_DIR, folderName);
+  try {
+    const stat = await fs.stat(basePath);
+    if (!stat.isDirectory()) return null;
+    const manifestPath = path.join(basePath, 'module.json');
+    const raw = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
+    const manifest = normalizeManifest(raw, folderName);
+    const entryPath = path.resolve(basePath, manifest.entry);
+    if (!entryPath.startsWith(`${basePath}${path.sep}`) || !(await pathExists(entryPath))) {
+      throw new Error('entry file does not exist.');
+    }
+    if (manifest.style) {
+      const stylePath = path.resolve(basePath, manifest.style);
+      if (!stylePath.startsWith(`${basePath}${path.sep}`) || !(await pathExists(stylePath))) {
+        throw new Error('style file does not exist.');
+      }
+    }
+    const capabilities = await normalizeCapabilities(
+      raw,
+      manifest.id,
+      basePath,
+      modulePublicUrl,
+      pathExists,
+      isSafeRelativeFile,
+    );
+    const availableLocales = await scanModuleLocales(basePath);
+    const i18n = normalizeModuleI18n(raw.i18n, availableLocales);
+    const enabled = !disabledSet.has(manifest.id);
+    return {
+      ...manifest,
+      i18n,
+      capabilities: clientCapabilities(capabilities),
+      enabled,
+      status: enabled ? 'enabled' : 'disabled',
+      error: null,
+    };
+  } catch (err) {
+    return {
+      id: folderName,
+      name: folderName,
+      version: '',
+      description: '',
+      icon: 'triangle-alert',
+      accent: '#EF4444',
+      route: null,
+      menu: { show: false, label: folderName, icon: 'triangle-alert', order: 1000 },
+      capabilities: null,
+      enabled: false,
+      status: 'error',
+      error: err?.message || 'Module could not be loaded.',
+    };
+  }
+}
+
+function refreshExtensionCatalog(modules) {
+  const enabled = modules.filter((m) => m.enabled && m.status === 'enabled');
+  _extensionCatalog = buildExtensionCatalog(
+    enabled.map((m) => ({
+      ...m,
+      capabilities: m.capabilities ? {
+        permissionModuleKey: m.capabilities.permissionModuleKey,
+        permissionModule: m.capabilities.permissionModule,
+        widgets: m.capabilities.widgets,
+        apiPrefix: m.capabilities.apiPrefix,
+        scopeKey: m.capabilities.scopeKey,
+      } : null,
+    })),
+  );
+  setExtensionScopeModules(_extensionCatalog.scopeModules);
+  setExtensionPermissionCatalog(_extensionCatalog);
+}
+
+async function listModules({ admin = false } = {}) {
+  await fs.mkdir(MODULES_DIR, { recursive: true });
+  const disabledSet = new Set(parseDisabledModules());
+  const entries = await fs.readdir(MODULES_DIR).catch((err) => {
+    log.error('Could not read modules directory:', err);
+    return [];
+  });
+
+  const modules = (await Promise.all(entries.map((entry) => readModule(entry, disabledSet))))
+    .filter(Boolean)
+    .sort((a, b) => (a.menu?.order ?? 1000) - (b.menu?.order ?? 1000) || a.name.localeCompare(b.name));
+
+  refreshExtensionCatalog(modules);
+
+  return admin ? modules : modules.filter((module) => module.enabled && module.status === 'enabled');
+}
+
+async function setModuleEnabled(id, enabled) {
+  if (!ID_RE.test(String(id || ''))) {
+    const err = new Error('Invalid module id.');
+    err.status = 400;
+    throw err;
+  }
+
+  const modules = await listModules({ admin: true });
+  const target = modules.find((module) => module.id === id);
+  if (!target) {
+    const err = new Error('Module not found.');
+    err.status = 404;
+    throw err;
+  }
+  if (target.status === 'error' && enabled) {
+    const err = new Error(target.error || 'Module has errors and cannot be enabled.');
+    err.status = 400;
+    throw err;
+  }
+
+  const disabled = new Set(parseDisabledModules());
+  if (enabled) disabled.delete(id);
+  else disabled.add(id);
+  setDisabledModules([...disabled]);
+  return (await listModules({ admin: true })).find((module) => module.id === id);
+}
+
+async function resolveAssetPath(id, relPath) {
+  const modules = await listModules({ admin: false });
+  const module = modules.find((item) => item.id === id);
+  if (!module) {
+    const err = new Error('Module not found or disabled.');
+    err.status = 404;
+    throw err;
+  }
+  if (!isSafeRelativeFile(relPath)) {
+    const err = new Error('Invalid module asset path.');
+    err.status = 400;
+    throw err;
+  }
+  const basePath = path.join(MODULES_DIR, id);
+  const assetPath = path.resolve(basePath, relPath);
+  if (!assetPath.startsWith(`${basePath}${path.sep}`)) {
+    const err = new Error('Invalid module asset path.');
+    err.status = 400;
+    throw err;
+  }
+  if (!(await pathExists(assetPath))) {
+    const err = new Error('Module asset not found.');
+    err.status = 404;
+    throw err;
+  }
+  return assetPath;
+}
+
+function getExtensionPermissionCatalog() {
+  return _extensionCatalog;
+}
+
+export {
+  MODULES_DIR,
+  listModules,
+  setModuleEnabled,
+  resolveAssetPath,
+  getExtensionPermissionCatalog,
+};
+
+export { extensionPermissionKey } from './module-capabilities.js';

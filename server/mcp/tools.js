@@ -1,0 +1,663 @@
+
+import * as v from '../middleware/validate.js';
+import { readFileSync } from 'node:fs';
+import { buildOpenApiSpec } from '../openapi.js';
+import { tokenAllows } from '../scopes.js';
+import { moduleAccessVerdict, MODULE_ACCESS_ALLOW } from '../permissions.js';
+import { toLocalDateKey } from '../../public/utils/date.js';
+import { taskScopeNeedsToday, taskScopeWhere } from '../services/task-scope.js';
+import { visibilityWhere } from '../services/visibility.js';
+import { getUpcomingEvents } from '../services/calendar-event-reader.js';
+import { loadTagsFor, normalizeTags, setTags, tagKey } from '../utils/task-tags.js';
+
+const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+
+const VALID_PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'];
+const VALID_CATEGORIES = ['household', 'school', 'shopping', 'repair',
+                          'health', 'finance', 'leisure', 'misc'];
+
+class ToolError extends Error {}
+
+
+function listTasks(db, actorId, args) {
+  let sql = `
+    SELECT t.id, t.title, t.status, t.priority, t.category, t.due_date, t.due_time
+    FROM tasks t
+    WHERE ${taskScopeWhere('t', { includeFuture: !!args.include_future, bind: '@today' })}
+
+
+
+
+      AND ${visibilityWhere('t', 'task_assignments', 'task_id', '@me')}
+  `;
+  const params = { me: actorId };
+  if (taskScopeNeedsToday({ includeFuture: !!args.include_future })) params.today = toLocalDateKey();
+  if (args.status) {
+    const s = v.oneOf(args.status, ['open', 'in_progress', 'done', 'archived'], 'status');
+    if (s.error) throw new ToolError(s.error);
+    if (args.status === 'archived') {
+      sql += ' AND t.archived_at IS NOT NULL';
+    } else {
+      sql += ' AND t.status = @status AND t.archived_at IS NULL';
+      params.status = args.status;
+    }
+  } else {
+    sql += ' AND t.archived_at IS NULL';
+  }
+  if (args.tag !== undefined && args.tag !== null
+      && !Array.isArray(args.tag) && typeof args.tag !== 'string') {
+    throw new ToolError('tag must be an array of strings or a single string.');
+  }
+  const tags = normalizeTags(args.tag === undefined ? [] : [args.tag].flat());
+  tags.forEach((tag, i) => {
+    sql += ` AND EXISTS (SELECT 1 FROM task_tags tt WHERE tt.task_id = t.id AND tt.tag_key = @tag${i})`;
+    params[`tag${i}`] = tagKey(tag);
+  });
+  sql += `
+    ORDER BY CASE WHEN t.due_date IS NULL THEN 1 ELSE 0 END, t.due_date ASC, t.created_at DESC
+    LIMIT 100
+  `;
+  const rows = db.prepare(sql).all(params);
+  const tagMap = loadTagsFor(db, rows.map((r) => r.id));
+  for (const row of rows) row.tags = tagMap.get(row.id) ?? [];
+  return rows;
+}
+
+function createTask(db, actorId, args) {
+  const title = v.str(args.title, 'title', { required: true });
+  const description = v.str(args.description, 'description', { required: false, max: v.MAX_TEXT });
+  const priority = v.oneOf(args.priority, VALID_PRIORITIES, 'priority');
+  const category = v.oneOf(args.category, VALID_CATEGORIES, 'category');
+  const dueDate = v.date(args.due_date, 'due_date');
+  const dueTime = v.time(args.due_time, 'due_time');
+
+  const errors = v.collectErrors([title, description, priority, category, dueDate, dueTime]);
+  if (errors.length) throw new ToolError(errors.join(' '));
+
+  const result = db.prepare(`
+    INSERT INTO tasks (title, description, category, priority, due_date, due_time, created_by, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'open')
+  `).run(
+    title.value,
+    description.value,
+    category.value || 'misc',
+    priority.value || 'none',
+    dueDate.value,
+    dueTime.value,
+    actorId,
+  );
+
+  const tags = setTags(db, result.lastInsertRowid, args.tags ?? []);
+
+  const task = db.prepare(
+    'SELECT id, title, status, priority, category, due_date, due_time FROM tasks WHERE id = ?'
+  ).get(result.lastInsertRowid);
+  return { ...task, tags };
+}
+
+function listShoppingItems(db, args) {
+  let sql = `
+    SELECT si.id, si.name, si.quantity, si.category, si.is_checked, sl.name AS list
+    FROM shopping_items si
+    JOIN shopping_lists sl ON sl.id = si.list_id
+  `;
+  if (args.include_checked !== true) sql += ' WHERE si.is_checked = 0';
+  sql += ' ORDER BY si.created_at DESC LIMIT 200';
+  return db.prepare(sql).all();
+}
+
+function addShoppingItem(db, actorId, args) {
+  const name = v.str(args.name, 'name', { required: true });
+  const quantity = v.str(args.quantity, 'quantity', { required: false, max: v.MAX_SHORT });
+  const category = v.str(args.category, 'category', { required: false, max: v.MAX_SHORT });
+
+  const errors = v.collectErrors([name, quantity, category]);
+  if (errors.length) throw new ToolError(errors.join(' '));
+
+  const list = args.list
+    ? db.prepare('SELECT id FROM shopping_lists WHERE name = ? ORDER BY id LIMIT 1').get(String(args.list).trim())
+    : db.prepare('SELECT id FROM shopping_lists ORDER BY id LIMIT 1').get();
+
+  if (!list) {
+    throw new ToolError(args.list
+      ? `No shopping list named "${args.list}" found.`
+      : 'No shopping list exists yet. Create one in the app first.');
+  }
+
+  const result = db.prepare(`
+    INSERT INTO shopping_items (list_id, name, quantity, category)
+    VALUES (?, ?, ?, ?)
+  `).run(list.id, name.value, quantity.value, category.value || 'Sonstiges');
+
+  return db.prepare(`
+    SELECT si.id, si.name, si.quantity, si.category, si.is_checked, sl.name AS list
+    FROM shopping_items si JOIN shopping_lists sl ON sl.id = si.list_id
+    WHERE si.id = ?
+  `).get(result.lastInsertRowid);
+}
+
+function listUpcomingEvents(db, actorId, args) {
+  let limit = parseInt(args.limit, 10);
+  if (!Number.isFinite(limit)) limit = 20;
+  limit = Math.min(Math.max(limit, 1), 100);
+  return getUpcomingEvents(db, {
+    userId: actorId,
+    limit,
+    windowDays: null,
+    fromToday: true,
+  }).map((event) => ({
+    id: event.id,
+    title: event.title,
+    start_datetime: event.start_datetime,
+    end_datetime: event.end_datetime,
+    all_day: event.all_day,
+    location: event.location,
+    ...(event.is_occurrence_override ? {
+      series_id: event.series_id,
+      recurrence_id: event.recurrence_id,
+      is_occurrence_override: true,
+      assignment_owner_id: event.assignment_owner_id,
+      attachment_owner_id: event.attachment_owner_id,
+      reminder_owner_id: event.reminder_owner_id,
+      reminder_anchor_start: event.reminder_anchor_start,
+    } : {}),
+  }));
+}
+
+function createEvent(db, actorId, args) {
+  const title = v.str(args.title, 'title', { required: true });
+  const start = v.datetime(args.start_datetime, 'start_datetime', true);
+  const end = v.datetime(args.end_datetime, 'end_datetime', false);
+  const location = v.str(args.location, 'location', { required: false, max: v.MAX_SHORT });
+  const description = v.str(args.description, 'description', { required: false, max: v.MAX_TEXT });
+
+  const errors = v.collectErrors([title, start, end, location, description]);
+  if (errors.length) throw new ToolError(errors.join(' '));
+
+  const result = db.prepare(`
+    INSERT INTO calendar_events
+      (title, description, start_datetime, end_datetime, all_day, location, created_by, external_source)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'local')
+  `).run(
+    title.value,
+    description.value,
+    start.value,
+    end.value,
+    args.all_day === true ? 1 : 0,
+    location.value,
+    actorId,
+  );
+
+  return db.prepare(`
+    SELECT id, title, start_datetime, end_datetime, all_day, location
+    FROM calendar_events WHERE id = ?
+  `).get(result.lastInsertRowid);
+}
+
+
+const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options']);
+
+let cachedOperations = null;
+
+function normalizeText(value) {
+  return String(value ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function openApiSpec() {
+  return buildOpenApiSpec(null, pkg.version);
+}
+
+function operationKey(method, path) {
+  const parts = [];
+  for (const segment of path.replace(/^\/+|\/+$/g, '').split('/')) {
+    if (segment === 'api' || segment === 'v1') continue;
+    if (segment.startsWith('{') && segment.endsWith('}')) {
+      parts.push('by', segment.slice(1, -1));
+    } else {
+      parts.push(segment);
+    }
+  }
+  return `${method.toLowerCase()}_${parts.join('_') || 'root'}`
+    .replace(/[^a-zA-Z0-9_]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .replace(/_+/g, '_')
+    .toLowerCase();
+}
+
+function openApiOperations() {
+  if (cachedOperations) return cachedOperations;
+  const spec = openApiSpec();
+  const operations = new Map();
+  const used = new Map();
+  for (const [path, pathItem] of Object.entries(spec.paths || {})) {
+    for (const [method, operation] of Object.entries(pathItem || {})) {
+      if (!HTTP_METHODS.has(method.toLowerCase()) || !operation || typeof operation !== 'object') continue;
+      let key = operationKey(method, path);
+      const count = (used.get(key) || 0) + 1;
+      used.set(key, count);
+      if (count > 1) key = `${key}_${count}`;
+      const parameters = Array.isArray(operation.parameters) ? operation.parameters : [];
+      const requestBody = operation.requestBody && typeof operation.requestBody === 'object' ? operation.requestBody : {};
+      const content = requestBody.content && typeof requestBody.content === 'object' ? requestBody.content : {};
+      operations.set(key, {
+        operation_key: key,
+        method: method.toUpperCase(),
+        path,
+        tag: (operation.tags || [''])[0],
+        summary: operation.summary || '',
+        description: operation.description || '',
+        parameters,
+        path_parameters: parameters.filter((p) => p.in === 'path').map((p) => p.name),
+        query_parameters: parameters.filter((p) => p.in === 'query').map((p) => p.name),
+        header_parameters: parameters.filter((p) => p.in === 'header' && p.name !== 'X-CSRF-Token').map((p) => p.name),
+        request_body_required: Boolean(requestBody.required),
+        request_content_types: Object.keys(content),
+        authenticated: Boolean(operation.security),
+      });
+    }
+  }
+  cachedOperations = operations;
+  return operations;
+}
+
+function publicOperationView(operation, includeParameters = false) {
+  const view = {
+    operation_key: operation.operation_key,
+    method: operation.method,
+    path: operation.path,
+    tag: operation.tag,
+    summary: operation.summary,
+    path_parameters: operation.path_parameters,
+    query_parameters: operation.query_parameters,
+    request_body_required: operation.request_body_required,
+    request_content_types: operation.request_content_types,
+    authenticated: operation.authenticated,
+  };
+  if (includeParameters) {
+    view.parameters = operation.parameters;
+    view.description = operation.description;
+    view.header_parameters = operation.header_parameters;
+  }
+  return view;
+}
+
+function resolveOpenApiOperation({ operation_key: key, method, path }) {
+  const operations = openApiOperations();
+  if (key) {
+    const operation = operations.get(key);
+    if (!operation) throw new ToolError(`Unknown operation_key: ${key}`);
+    return operation;
+  }
+  if (!method || !path) throw new ToolError('Pass operation_key, or pass both method and path.');
+  const normalizedMethod = String(method).toUpperCase();
+  const normalizedPath = String(path).startsWith('/') ? String(path) : `/${path}`;
+  for (const operation of operations.values()) {
+    if (operation.method === normalizedMethod && operation.path === normalizedPath) return operation;
+  }
+  throw new ToolError(`OpenAPI operation not found for ${normalizedMethod} ${normalizedPath}`);
+}
+
+function renderPath(path, pathParams = {}) {
+  return path.replace(/\{([^}]+)\}/g, (_match, name) => {
+    if (pathParams[name] === undefined || pathParams[name] === null) {
+      throw new ToolError(`Missing path parameter: ${name}`);
+    }
+    return encodeURIComponent(String(pathParams[name]));
+  });
+}
+
+function contentBytes(contentData) {
+  let raw = String(contentData || '').trim();
+  if (raw.startsWith('data:')) {
+    const match = raw.match(/^data:[^;,]+;base64,(.+)$/is);
+    if (!match) throw new ToolError('content_data must be a valid base64 data URL.');
+    raw = match[1];
+  }
+  raw = raw.replace(/\s+/g, '');
+  if (!raw) throw new ToolError('content_data is required.');
+  return Buffer.from(raw, 'base64');
+}
+
+function jsonBody(payload) {
+  if (typeof payload !== 'string') return JSON.stringify(payload ?? {});
+  const trimmed = payload.trim();
+  if (!trimmed) return '{}';
+  let parsed;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    throw new ToolError('payload must be a JSON object (or a string containing one).');
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    throw new ToolError('payload must be a JSON object (or a string containing one).');
+  }
+  return JSON.stringify(parsed);
+}
+
+function internalBaseUrl() {
+  return (
+    process.env.MCP_INTERNAL_BASE_URL
+    || process.env.BASE_URL
+    || `http://127.0.0.1:${process.env.PORT || 3000}`
+  ).replace(/\/+$/, '');
+}
+
+function forwardedAuthHeaders(ctx) {
+  const headers = {};
+  const source = ctx.requestHeaders || {};
+  const auth = source.authorization || source.Authorization;
+  const apiKey = source['x-api-key'] || source['X-API-Key'] || source['api-key'] || source['API-Key'];
+  const cookie = source.cookie || source.Cookie;
+  const csrf = source['x-csrf-token'] || source['X-CSRF-Token'];
+  if (auth) headers.Authorization = auth;
+  if (apiKey) headers['X-API-Key'] = apiKey;
+  if (cookie) headers.Cookie = cookie;
+  if (csrf) headers['X-CSRF-Token'] = csrf;
+  return headers;
+}
+
+const MAX_BINARY_RESPONSE_BYTES = 5 * 1024 * 1024; // 5 MiB
+
+async function readCappedBinary(response, cap = MAX_BINARY_RESPONSE_BYTES) {
+  const tooLarge = (size) => new ToolError(
+    `Binary response too large for the MCP bridge (${size} bytes, max ${cap}). `
+    + 'Use the dedicated download route directly instead.',
+  );
+
+  const declared = Number(response.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > cap) throw tooLarge(declared);
+
+  const reader = response.body && typeof response.body.getReader === 'function'
+    ? response.body.getReader()
+    : null;
+  if (!reader) {
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > cap) throw tooLarge(buffer.length);
+    return buffer;
+  }
+
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > cap) {
+      await reader.cancel().catch(() => {});
+      throw tooLarge(total);
+    }
+    chunks.push(Buffer.from(value));
+  }
+  return Buffer.concat(chunks);
+}
+
+async function internalApiRequest(ctx, method, path, { query, payload, contentData, contentType } = {}) {
+  const url = new URL(path, `${internalBaseUrl()}/`);
+  for (const [key, value] of Object.entries(query || {})) {
+    if (value === undefined || value === null) continue;
+    if (Array.isArray(value)) {
+      for (const item of value) url.searchParams.append(key, String(item));
+    } else {
+      url.searchParams.set(key, String(value));
+    }
+  }
+
+  const headers = { Accept: 'application/json', ...forwardedAuthHeaders(ctx) };
+  const options = { method, headers };
+  if (contentData !== undefined && contentData !== null) {
+    options.body = contentBytes(contentData);
+    headers['Content-Type'] = contentType || 'application/octet-stream';
+  } else if (!['GET', 'HEAD'].includes(method.toUpperCase()) && payload !== undefined) {
+    options.body = jsonBody(payload);
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const response = await fetch(url, options);
+  const responseContentType = response.headers.get('content-type') || '';
+  let data;
+  if (responseContentType.includes('application/json')) {
+    data = await response.json().catch(() => null);
+  } else if (responseContentType.startsWith('text/') || responseContentType.includes('text/calendar')) {
+    data = { text: await response.text(), content_type: responseContentType };
+  } else {
+    const buffer = await readCappedBinary(response);
+    data = buffer.length
+      ? {
+          content_base64: buffer.toString('base64'),
+          content_type: responseContentType,
+          content_length: buffer.length,
+        }
+      : null;
+  }
+
+  if (!response.ok) {
+    const message = data && typeof data === 'object' && data.error
+      ? data.error
+      : `HTTP ${response.status}`;
+    throw new ToolError(`${message}`);
+  }
+  return data;
+}
+
+
+const CORE_TOOLS = [
+  {
+    name: 'list_tasks',
+    description: 'List the family\'s current top-level tasks (open by default). Optionally filter by status and tags. Each task carries its tags; tags are free-form labels mirrored from CalDAV task lists and are distinct from the single category a task has.',
+    scope: { module: 'tasks', access: 'read' },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['open', 'in_progress', 'done', 'archived'], description: 'Filter by task status. "archived" is not a status but the separate archive: it lists the filed-away tasks with whatever status they carry.' },
+        include_future: { type: 'boolean', description: 'Include tasks that only start at a later date. Left out by default, matching the app: a task with a start date next week is not up yet.' },
+        tag: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Filter by tags. Several tags narrow the list (a task must carry all of them). Case-insensitive.',
+        },
+      },
+    },
+    handler: (ctx, args) => listTasks(ctx.db, ctx.actor.id, args),
+  },
+  {
+    name: 'create_task',
+    description: 'Create a new task on the family planner.',
+    scope: { module: 'tasks', access: 'write' },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title:       { type: 'string', description: 'Short task title (required).' },
+        description: { type: 'string', description: 'Optional longer description.' },
+        category:    { type: 'string', enum: VALID_CATEGORIES, description: 'Optional category.' },
+        priority:    { type: 'string', enum: VALID_PRIORITIES, description: 'Optional priority (default none).' },
+        due_date:    { type: 'string', description: 'Optional due date, format YYYY-MM-DD.' },
+        due_time:    { type: 'string', description: 'Optional due time, format HH:MM.' },
+        tags: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional free-form tags. Unlike the single category, a task can carry many. Mirrored to CATEGORIES on CalDAV task lists.',
+        },
+      },
+      required: ['title'],
+    },
+    handler: (ctx, args) => createTask(ctx.db, ctx.actor.id, args),
+  },
+  {
+    name: 'list_shopping_items',
+    description: 'List shopping items across all lists (unchecked by default).',
+    scope: { module: 'shopping', access: 'read' },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        include_checked: { type: 'boolean', description: 'Also include already-checked items.' },
+      },
+    },
+    handler: (ctx, args) => listShoppingItems(ctx.db, args),
+  },
+  {
+    name: 'add_shopping_item',
+    description: 'Add an item to a shopping list. Uses the first list if none is named.',
+    scope: { module: 'shopping', access: 'write' },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name:     { type: 'string', description: 'Item name (required).' },
+        quantity: { type: 'string', description: 'Optional quantity, e.g. "2" or "500 g".' },
+        category: { type: 'string', description: 'Optional category.' },
+        list:     { type: 'string', description: 'Optional target list name.' },
+      },
+      required: ['name'],
+    },
+    handler: (ctx, args) => addShoppingItem(ctx.db, ctx.actor.id, args),
+  },
+  {
+    name: 'list_upcoming_events',
+    description: 'List upcoming calendar events from today onward.',
+    scope: { module: 'calendar', access: 'read' },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: { type: 'integer', description: 'Max number of events (1-100, default 20).' },
+      },
+    },
+    handler: (ctx, args) => listUpcomingEvents(ctx.db, ctx.actor.id, args),
+  },
+  {
+    name: 'create_event',
+    description: 'Create a calendar event.',
+    scope: { module: 'calendar', access: 'write' },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title:          { type: 'string', description: 'Event title (required).' },
+        start_datetime: { type: 'string', description: 'Start, format YYYY-MM-DD or YYYY-MM-DDTHH:MM (required).' },
+        end_datetime:   { type: 'string', description: 'Optional end, same format as start.' },
+        all_day:        { type: 'boolean', description: 'Whether the event lasts all day.' },
+        location:       { type: 'string', description: 'Optional location.' },
+        description:    { type: 'string', description: 'Optional description.' },
+      },
+      required: ['title', 'start_datetime'],
+    },
+    handler: (ctx, args) => createEvent(ctx.db, ctx.actor.id, args),
+  },
+];
+
+const OPENAPI_TOOLS = [
+  {
+    name: 'list_api_operations',
+    description: 'List Aashiyana REST API operations reachable through call_api_operation.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        tag: { type: 'string', description: 'Optional OpenAPI tag filter (e.g. Budget, Calendar).' },
+        search: { type: 'string', description: 'Optional text search across key, path, tag and summary.' },
+        include_parameters: { type: 'boolean', description: 'Include full OpenAPI parameter metadata.' },
+      },
+    },
+    handler: (_ctx, args) => {
+      const tagFilter = args.tag ? normalizeText(args.tag) : '';
+      const searchFilter = args.search ? normalizeText(args.search) : '';
+      const operations = [];
+      for (const operation of openApiOperations().values()) {
+        const haystack = normalizeText([
+          operation.operation_key,
+          operation.method,
+          operation.path,
+          operation.tag,
+          operation.summary,
+          operation.description,
+        ].join(' '));
+        if (tagFilter && normalizeText(operation.tag) !== tagFilter) continue;
+        if (searchFilter && !haystack.includes(searchFilter)) continue;
+        operations.push(publicOperationView(operation, args.include_parameters === true));
+      }
+      operations.sort((a, b) => `${a.tag} ${a.path} ${a.method}`.localeCompare(`${b.tag} ${b.path} ${b.method}`));
+      return { count: operations.length, operations };
+    },
+  },
+  {
+    name: 'get_api_operation',
+    description: 'Return OpenAPI metadata for one Aashiyana API operation key.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        operation_key: { type: 'string', description: 'Operation key returned by list_api_operations.' },
+      },
+      required: ['operation_key'],
+    },
+    handler: (_ctx, args) => publicOperationView(resolveOpenApiOperation(args), true),
+  },
+  {
+    name: 'call_api_operation',
+    description: 'Call any Aashiyana REST API operation from the live OpenAPI spec. Runs with the permissions of the authenticated MCP token — admin-only routes require an admin token.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        operation_key: { type: 'string', description: 'Operation key returned by list_api_operations.' },
+        method: { type: 'string', description: 'HTTP method, used with path when operation_key is omitted.' },
+        path: { type: 'string', description: 'OpenAPI path, used with method when operation_key is omitted.' },
+        path_params: { type: 'object', description: 'Values for path template parameters.' },
+        query: { type: 'object', description: 'Query string parameters.' },
+        payload: { type: 'object', description: 'JSON request body.' },
+        content_data: { type: 'string', description: 'Base64 or base64 data URL for binary uploads.' },
+      },
+    },
+    handler: (ctx, args) => {
+      const operation = resolveOpenApiOperation(args);
+      const path = renderPath(operation.path, args.path_params || {});
+      const contentTypes = operation.request_content_types || [];
+      const contentType = contentTypes.includes('application/octet-stream')
+        ? 'application/octet-stream'
+        : contentTypes[0];
+      return internalApiRequest(ctx, operation.method, path, {
+        query: args.query,
+        payload: args.payload,
+        contentData: args.content_data,
+        contentType,
+      });
+    },
+  },
+];
+
+const ALL_TOOLS = [...CORE_TOOLS, ...OPENAPI_TOOLS];
+
+
+const TOOL_DEFINITIONS = ALL_TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema }));
+const TOOL_MAP = new Map(ALL_TOOLS.map((t) => [t.name, t]));
+
+/**
+ 
+ * @param {{ scopes?: string[]|null, moduleAccess?: object|null, splitGuest?: boolean }|null} actor
+ * @param {{ scope?: { module: string, access: 'read'|'write' } }} tool
+ * @returns {boolean}
+ */
+function toolAllowed(actor, tool) {
+  if (!tool.scope) return true;
+  if (actor && actor.splitGuest) return false;
+  const scopes = actor ? (actor.scopes ?? null) : null;
+  if (!tokenAllows(scopes, tool.scope.module, tool.scope.access)) return false;
+  const moduleAccess = actor ? (actor.moduleAccess ?? null) : null;
+  return moduleAccessVerdict(moduleAccess, tool.scope.module, tool.scope.access) === MODULE_ACCESS_ALLOW;
+}
+
+/**
+ * @param {{ scopes?: string[]|null, moduleAccess?: object|null, splitGuest?: boolean }|null} actor
+ * @returns {Array<{ name: string, description: string, inputSchema: object }>}
+ */
+function listToolDefinitions(actor = null) {
+  return ALL_TOOLS
+    .filter((tool) => toolAllowed(actor, tool))
+    .map(({ name, description, inputSchema }) => ({ name, description, inputSchema }));
+}
+
+async function callTool(ctx, name, args = {}) {
+  const tool = TOOL_MAP.get(name);
+  if (!tool) throw new ToolError(`Unknown tool: ${name}`);
+  const actor = ctx.actor || null;
+  if (!toolAllowed(actor, tool)) {
+    throw new ToolError(`Tool "${name}" is not permitted for this account.`);
+  }
+  return tool.handler(ctx, args || {});
+}
+
+export { TOOL_DEFINITIONS, listToolDefinitions, callTool, ToolError };

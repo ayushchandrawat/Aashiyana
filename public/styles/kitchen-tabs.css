@@ -1,0 +1,42 @@
+
+.kitchen-tabs-bar {
+  --sub-tabs-height: var(--kitchen-tabs-height);
+}
+
+@media (max-width: 639px) {
+  .kitchen-tabs-bar {
+    gap: var(--space-0h);
+  }
+
+  .kitchen-tabs-bar .sub-tabs-bar__title {
+    display: none;
+  }
+
+  .kitchen-tabs-bar .sub-tab {
+    flex: 0 0 auto;
+    justify-content: center;
+    gap: var(--space-0h);
+    padding-inline: var(--space-2);
+  }
+
+  .kitchen-tabs-bar .sub-tab__icon,
+  .kitchen-tabs-bar .sub-tab > svg {
+    display: none;
+  }
+}
+
+.has-kitchen-tabs .meals-page,
+.has-kitchen-tabs .recipes-page,
+.has-kitchen-tabs .shopping-page,
+.has-kitchen-tabs .pantry-page {
+  height: calc(100% - var(--kitchen-tabs-height));
+}
+
+@media (min-width: 1024px) {
+  .has-kitchen-tabs .meals-page,
+  .has-kitchen-tabs .recipes-page,
+  .has-kitchen-tabs .shopping-page,
+  .has-kitchen-tabs .pantry-page {
+    height: calc(100% - var(--kitchen-tabs-height));
+  }
+}

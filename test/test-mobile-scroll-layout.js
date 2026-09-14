@@ -1,0 +1,240 @@
+
+import assert from 'node:assert/strict';
+import { readFileSync, readdirSync } from 'node:fs';
+import test from 'node:test';
+
+import {
+  rememberScrollPosition,
+  scrollPositionFor,
+  forgetScrollPositions,
+} from '../public/utils/scroll-restore.js';
+
+const routerJs = readFileSync(new URL('../public/router.js', import.meta.url), 'utf8');
+const layoutCss = readFileSync(new URL('../public/styles/layout.css', import.meta.url), 'utf8');
+const glassCss = readFileSync(new URL('../public/styles/glass.css', import.meta.url), 'utf8');
+const tokensCss = readFileSync(new URL('../public/styles/tokens.css', import.meta.url), 'utf8');
+
+function cssRuleBody(css, selector) {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = css.match(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`, 'm'));
+  return match?.[1] ?? '';
+}
+
+test('mobile scrolling keeps navigation and fixed layers stable', () => {
+  assert.equal(
+    routerJs.includes('document.documentElement.classList.toggle(\'nav-bottom--hidden\''),
+    false,
+    'Scroll-Handler darf den Bottom-Nav-Status nicht auf <html> spiegeln'
+  );
+
+  assert.equal(
+    routerJs.includes('setNavHidden'),
+    false,
+    'Kein Scrollpfad darf die mobile Bottom-Nav ausblenden'
+  );
+
+  assert.equal(
+    layoutCss.includes('html.nav-bottom--hidden .page-fab'),
+    false,
+    'FAB darf nicht über eine Root-Klasse während des Scrollens umpositioniert werden'
+  );
+
+  const pageFabRule = cssRuleBody(layoutCss, '.page-fab');
+  assert.equal(
+    /transition\s*:[^;]*\bbottom\b/.test(pageFabRule),
+    false,
+    'FAB darf bottom nicht animieren; fixed Layer sollen beim Scrollen stabil bleiben'
+  );
+
+  assert.equal(
+    glassCss.includes('.nav-bottom--hidden'),
+    false,
+    'Die Glass-Schicht darf keinen versteckten Bottom-Nav-Zustand definieren'
+  );
+});
+
+test('mobile bottom navigation reserves safe-area space without scroll-time root mutation', () => {
+  const navRule = cssRuleBody(layoutCss, '.nav-bottom');
+  const rootRule = cssRuleBody(layoutCss, ':root');
+
+
+
+
+
+
+  assert.match(
+    navRule,
+    /padding(-bottom)?:[^;]*var\(--safe-area-inset-bottom\)/,
+    'die Bar muss die Safe-Area selbst reservieren',
+  );
+  assert.match(tokensCss, /--nav-bottom-height:\s*calc\(var\(--nav-height-mobile\)[^;]*var\(--safe-area-inset-bottom\)\)/);
+  assert.equal(rootRule.includes('nav-bottom--hidden'), false);
+});
+
+test('mobile bottom navigation keeps five equal slots with inset indicator geometry', () => {
+  const itemsRule = cssRuleBody(layoutCss, '.nav-bottom__items');
+  const itemRule = cssRuleBody(layoutCss, '.nav-bottom .nav-item');
+  const baseItemRule = cssRuleBody(layoutCss, '.nav-item');
+  const indicatorRule = cssRuleBody(layoutCss, '.nav-bottom__indicator');
+  const indicatorSurfaceRule = cssRuleBody(layoutCss, '.nav-bottom__indicator::before');
+
+  assert.match(itemsRule, /display:\s*flex/);
+  assert.match(baseItemRule, /flex:\s*1/);
+  assert.match(itemRule, /min-width:\s*0/);
+  assert.match(indicatorSurfaceRule, /inset-inline:\s*var\(--space-1\)/);
+
+
+  assert.match(indicatorRule, /top:\s*0/);
+  assert.match(indicatorRule, /bottom:\s*auto/);
+  assert.match(indicatorRule, /height:\s*var\(--target-md\)/);
+  assert.doesNotMatch(indicatorRule, /transition:[^;]*\bwidth\b/);
+});
+
+test('mobile tab indicator stays a capsule behind the icon, clear of the bar edges', () => {
+
+
+
+  const fn = routerJs.slice(routerJs.indexOf('function positionTabIndicator'));
+  const body = fn.slice(0, fn.indexOf('\n}\n') + 2);
+
+  assert.match(body, /querySelector\('\.nav-item__icon-well'\)/);
+  assert.match(body, /Math\.min\(ar\.width - TAB_INDICATOR_INSET \* 2, TAB_INDICATOR_MAX_WIDTH\)/);
+  assert.match(body, /indicator\.style\.height = `\$\{wr\.height\}px`/);
+  assert.match(body, /translate\(\$\{left\}px, \$\{top\}px\)/);
+  assert.doesNotMatch(body, /indicator\.style\.width = `\$\{ar\.width\}px`/);
+  assert.match(routerJs, /const TAB_INDICATOR_INSET = 4;/);
+  assert.match(routerJs, /const TAB_INDICATOR_MAX_WIDTH = 64;/);
+});
+
+test('cold dashboard load does not transform the scroll surface', () => {
+  assert.match(
+    routerJs,
+    /const shouldAnimate = Boolean\(previousPath\);/,
+    'the router must distinguish a cold load from an in-app navigation',
+  );
+  assert.match(
+    routerJs,
+    /if \(shouldAnimate\) \{\s*pageWrapper\.classList\.add\(inClass\);/,
+    'the slide class must only be applied after an existing route',
+  );
+});
+
+test('a forward navigation opens the target page at the top, a back navigation where it was', () => {
+  forgetScrollPositions();
+
+
+  rememberScrollPosition('/', 1267);
+
+  assert.equal(
+    scrollPositionFor('/tasks', { restore: false }),
+    0,
+    'ein eigener Aufruf (pushState) muss oben beginnen',
+  );
+  assert.equal(
+    scrollPositionFor('/', { restore: true }),
+    1267,
+    'Browser-Zurück muss den gemerkten Stand der ZIELseite liefern',
+  );
+  assert.equal(
+    scrollPositionFor('/tasks', { restore: true }),
+    0,
+    'ohne gemerkten Stand bleibt auch popstate bei 0',
+  );
+
+
+  rememberScrollPosition('/', 0);
+  assert.equal(scrollPositionFor('/', { restore: true }), 0);
+
+  forgetScrollPositions();
+  rememberScrollPosition('/', 1267);
+  forgetScrollPositions();
+  assert.equal(
+    scrollPositionFor('/', { restore: true }),
+    0,
+    'nach Sitzungsende darf kein Stand überleben',
+  );
+});
+
+test('the router resets the surviving scrollport on every navigation', () => {
+
+
+
+  const mainRule = cssRuleBody(layoutCss, '.app-content');
+  assert.match(mainRule, /overflow-y:\s*auto/, '.app-content ist der Scrollport');
+  assert.match(
+    routerJs,
+    /main\.className = 'app-content';\s*main\.id = 'main-content';/,
+    'Scrollport und getauschter Container müssen dasselbe Element bleiben',
+  );
+
+
+
+
+
+  const routerCode = routerJs
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^[ \t]*\/\/[^\n]*$/gm, '');
+
+  assert.match(
+    routerCode,
+    /content\.replaceChildren\(pageWrapper\);\s*content\.scrollTop = 0;/,
+    'der Reset muss direkt am Inhaltstausch hängen - VOR dem Render, sonst kassiert '
+    + 'er die modul-eigenen Scrolls (Kalender-Tagesansicht, Essensplan) wieder ein',
+  );
+  assert.match(
+    routerJs,
+    /if \(scrollTarget > 0\) content\.scrollTop = scrollTarget;/,
+    'die Wiederherstellung bei popstate gehört hinter das await auf den Render',
+  );
+  assert.match(
+    routerJs,
+    /scrollPositionFor\(basePath, \{ restore: !pushState \}\)/,
+    'die Richtung kommt aus pushState, nicht aus getDirection() - das ist die '
+    + 'Slide-Richtung nach ROUTE_ORDER und auch bei Vorwärts-Taps oft "left"',
+  );
+});
+
+test('the modules with an inner scroll container are the documented eight', () => {
+  const styleDir = new URL('../public/styles/', import.meta.url);
+  const found = [];
+
+  for (const file of readdirSync(styleDir).filter((f) => f.endsWith('.css'))) {
+    const css = readFileSync(new URL(file, styleDir), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const [, selector, body] of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+      const sel = selector.split('\n').pop().trim();
+      if (!/^\.[a-z-]+-page$/.test(sel)) continue;
+      if (/height:\s*100%/.test(body) && /overflow:\s*hidden/.test(body)) found.push(sel);
+    }
+  }
+
+  assert.deepEqual(
+    [...new Set(found)].sort(),
+    [
+      '.budget-page', '.calendar-page', '.contacts-page', '.meals-page',
+      '.notes-page', '.pantry-page', '.recipes-page', '.shopping-page',
+    ],
+    'Die Module mit innerem Scroller haben sich geändert. Sie sind genau die, in '
+    + 'denen Browser-Zurück NICHT an die alte Position zurückkehrt - die Liste in '
+    + 'utils/scroll-restore.js und in docs/SPEC.md (Responsive Composition) muss mit.',
+  );
+});
+
+test('closed dashboard speed dial cannot capture first-scroll gestures', () => {
+  const dashboardCss = readFileSync(new URL('../public/styles/dashboard.css', import.meta.url), 'utf8');
+  const layoutCss = readFileSync(new URL('../public/styles/layout.css', import.meta.url), 'utf8');
+  const actionsRule = cssRuleBody(dashboardCss, '.fab-actions');
+
+
+
+
+
+
+  assert.match(actionsRule, /position:\s*absolute/,
+    'die Aktionsliste muss aus dem Fluss der Gruppe heraus - sonst ist der '
+    + 'geschlossene Dial so hoch wie seine ausgeklappte Liste');
+  assert.match(actionsRule, /pointer-events:\s*none/,
+    'die geschlossene Liste ist unsichtbar und darf keine Klicks fangen');
+  assert.match(dashboardCss, /\.fab-actions--visible\s*\{[^}]*pointer-events:\s*auto/s);
+  assert.doesNotMatch(cssRuleBody(layoutCss, '.page-fab-group'), /pointer-events/,
+    'die Gruppe braucht keinen Pointer-Freibrief mehr - ihr Kasten ist der FAB');
+});

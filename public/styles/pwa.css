@@ -1,0 +1,61 @@
+
+html {
+  overscroll-behavior: none;
+}
+
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+
+/* ── Smooth Momentum-Scrolling in scrollbaren Containern ── */
+.scroll-container,
+.nav-bottom__scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+nav,
+.nav-bottom,
+.nav-sidebar,
+.page-toolbar,
+.sub-tabs-bar,
+.modal-panel__header {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@media (display-mode: standalone) {
+  .app-shell {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Kein Scroll-Bleed - Content bleibt in seinem Container */
+  .app-content {
+    overscroll-behavior-y: contain;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-bottom, 0px);
+    background-color: color-mix(in srgb, var(--color-surface) 85%, transparent);
+    backdrop-filter: var(--blur-md) saturate(180%);
+    -webkit-backdrop-filter: var(--blur-md) saturate(180%);
+    z-index: calc(var(--z-nav) - 1);
+  }
+}

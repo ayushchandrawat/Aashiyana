@@ -1,0 +1,63 @@
+
+#
+# ── Setup (rootless, empfohlen) ────────────────────────────────────────────────
+#   1. Datenverzeichnisse anlegen:
+#        mkdir -p ~/.local/share/oikos/{data,backups,modules,documents} ~/.config/oikos
+
+#        cp /pfad/zu/oikos/.env ~/.config/oikos/.env
+#   3. Diese Unit installieren:
+#        mkdir -p ~/.config/containers/systemd
+#        cp tools/quadlet/oikos.container ~/.config/containers/systemd/
+#   4. Generieren & starten:
+#        systemctl --user daemon-reload
+#        systemctl --user start oikos
+
+#        loginctl enable-linger "$USER"
+#
+
+
+#
+
+
+
+[Unit]
+Description=Aashiyana family planner
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=ghcr.io/AyushChandrawat/aashiyana:latest
+ContainerName=oikos
+
+
+EnvironmentFile=%h/.config/oikos/.env
+
+# Laufzeit-Defaults (entsprechen docker-compose.yml).
+Environment=NODE_ENV=production
+Environment=DB_PATH=/data/aashiyana.db
+Environment=BACKUP_DIR=/backups
+
+
+#   PublishPort=127.0.0.1:3000:3000
+PublishPort=3000:3000
+
+# `:Z` = privates SELinux-Relabel pro Container (Enforcing-tauglich).
+Volume=%h/.local/share/oikos/data:/data:Z
+Volume=%h/.local/share/oikos/backups:/backups:Z
+Volume=%h/.local/share/oikos/modules:/app/modules:Z
+
+Volume=%h/.local/share/oikos/documents:/documents:Z
+
+# Healthcheck identisch zum Compose-Manifest.
+HealthCmd=node -e "require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1))"
+HealthInterval=30s
+HealthTimeout=10s
+HealthRetries=3
+HealthStartPeriod=10s
+
+[Service]
+Restart=always
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

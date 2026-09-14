@@ -1,0 +1,1254 @@
+/**
+ * Module: Family Documents
+ * Purpose: REST API for locally stored family documents with per-member visibility.
+ * Dependencies: express, server/db.js
+ */
+
+import express from 'express';
+import { createHmac, randomBytes } from 'node:crypto';
+import * as db from '../db.js';
+import { createLogger } from '../logger.js';
+import { str, collectErrors, id as validateId, MAX_TEXT, MAX_TITLE } from '../middleware/validate.js';
+import { documentVisibleSql } from '../services/document-access.js';
+import {
+  DocumentDeletionInProgressError,
+  documentDeleteIsActive,
+  lockDocumentDeletes,
+  sendDocumentDeletionConflict,
+  unlockDocumentDeletes,
+} from '../services/document-deletion-lock.js';
+import { ensureModuleFolder, isModuleFolderKey } from '../services/document-folders.js';
+import { subtreeIds, folderMoveIssue, MAX_FOLDER_DEPTH } from '../../public/utils/folder-tree.js';
+import { getAdapter as defaultGetDmsAdapter } from '../services/dms/index.js';
+import { getStatus as getGoogleDriveStatus } from '../services/google-drive-storage.js';
+import {
+  StorageError,
+  assertWebdavTargetAllowed,
+  cleanupStagedUpload,
+  deleteDocumentContent,
+  getActiveUploadBackend,
+  getConfig as getStorageConfig,
+  getEffectiveTarget,
+  getLocalStorageConfig,
+  getSelectedUploadBackend,
+  getStatus as getStorageStatus,
+  isUploadBackendSelectionExplicit,
+  readDocumentContent,
+  resolveConfig,
+  saveConfig as saveStorageConfig,
+  setSelectedUploadBackend,
+  stageDocumentUpload,
+  testConnection as testStorageConnection,
+  verifyExistingWebdavDocument,
+} from '../services/document-storage.js';
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '../utils/upload-limit.js';
+import { contentMatchesMime } from '../utils/file-signature.js';
+
+let dmsAdapterFactory = defaultGetDmsAdapter;
+export function _setDmsAdapterFactory(fn) { dmsAdapterFactory = fn || defaultGetDmsAdapter; }
+
+function loadDmsAccount(id) {
+  return db.get().prepare('SELECT * FROM dms_accounts WHERE id = ?').get(id);
+}
+
+class DmsDocumentUnavailableError extends Error {}
+
+const log = createLogger('Documents');
+const router = express.Router();
+
+// External storage deletion yields back to Express between documents. Keep the
+// exact previewed identities stable during that window so a later request
+// cannot move a confirmed document or child folder out from under the batch.
+// Aashiyana runs one Node process per instance; the database remains the durable
+// source of truth, while these sets serialize in-flight route mutations.
+const activeFolderTreeDeletes = new Set();
+const folderDeleteSnapshotKey = process.env.SESSION_SECRET || randomBytes(32);
+
+function deletionInProgress(res) {
+  return res.status(409).json({
+    error: 'The document folder is currently being deleted. Try again when the operation finishes.',
+    code: 409,
+    reason: 'FOLDER_DELETE_IN_PROGRESS',
+  });
+}
+
+function documentDeletionInProgress(res) {
+  sendDocumentDeletionConflict(res, new DocumentDeletionInProgressError());
+  return res;
+}
+
+const CATEGORIES = ['medical', 'school', 'identity', 'insurance', 'finance', 'home', 'vehicle', 'legal', 'travel', 'pets', 'warranty', 'taxes', 'work', 'other'];
+const VISIBILITIES = ['family', 'restricted', 'private'];
+const STATUSES = ['active', 'archived'];
+const MAX_FILE_BYTES = MAX_UPLOAD_BYTES;
+const ALLOWED_MIME = new Set([
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'text/plain',
+  'text/csv',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+]);
+
+
+
+
+
+
+
+// was inline ausgeliefert wird.
+const PREVIEWABLE_MIME = new Set([
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'text/plain',
+  'text/csv',
+]);
+
+
+
+
+
+
+const THUMBNAIL_MIME = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+]);
+
+function normalizeMime(value) {
+  return String(value || '').split(';')[0].trim().toLowerCase();
+}
+
+
+
+
+function effectiveMime(content, doc) {
+  const live = normalizeMime(content.mime);
+  const stored = normalizeMime(doc.mime_type);
+  if (live && live !== 'application/octet-stream') return live;
+  if (stored) return stored;
+  return live || 'application/octet-stream';
+}
+
+function userId(req) {
+  return req.authUserId || req.session.userId;
+}
+
+function isAdmin(req) {
+  return req.authRole === 'admin' || req.session?.role === 'admin';
+}
+
+function canSeeSql(alias = 'd') {
+  return documentVisibleSql(alias);
+}
+
+function parseMemberIds(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0))];
+}
+
+function parseDataUrl(dataUrl) {
+  const raw = String(dataUrl || '');
+  const match = raw.match(/^data:([^;,]+);base64,([A-Za-z0-9+/=\s]+)$/);
+  if (!match) return { error: 'File content must be a valid base64 data URL.' };
+  const mime = match[1].toLowerCase();
+  if (!ALLOWED_MIME.has(mime)) return { error: 'File type is not allowed.' };
+  const base64 = match[2].replace(/\s/g, '');
+  const buffer = Buffer.from(base64, 'base64');
+  if (!buffer.length) return { error: 'File content is empty.' };
+  if (buffer.length > MAX_FILE_BYTES) return { error: `File may be at most ${MAX_UPLOAD_MB} MB.` };
+
+
+
+  // (#937). Typen ohne Signatur - text/plain, text/csv - passieren weiter.
+  if (!contentMatchesMime(buffer, mime)) {
+    return { error: 'File content does not match its declared type.' };
+  }
+  return { mime, base64, size: buffer.length, buffer };
+}
+
+function documentSelect() {
+  return `
+    SELECT d.id, d.name, d.description, d.category, d.status, d.visibility,
+           d.original_name, d.mime_type, d.file_size, d.storage_provider,
+           d.storage_backend, d.storage_key, d.dms_account_id, d.external_url,
+           d.external_meta, d.folder_id, d.created_by, d.created_at, d.updated_at,
+           f.name AS folder_name,
+           u.display_name AS creator_name, u.avatar_color AS creator_color,
+           da.provider AS dms_provider,
+           GROUP_CONCAT(a.user_id) AS allowed_member_ids
+    FROM family_documents d
+    LEFT JOIN family_document_folders f ON f.id = d.folder_id
+    LEFT JOIN users u ON u.id = d.created_by
+    LEFT JOIN dms_accounts da ON da.id = d.dms_account_id
+    LEFT JOIN family_document_access a ON a.document_id = d.id
+  `;
+}
+
+function normalizeDocument(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    allowed_member_ids: row.allowed_member_ids
+      ? row.allowed_member_ids.split(',').map((id) => Number(id)).filter(Boolean)
+      : [],
+  };
+}
+
+function getVisibleDocument(id, req, includeContent = false) {
+  const columns = includeContent ? 'd.*' : 'd.id, d.created_by, d.visibility, d.description, d.folder_id';
+  return db.get().prepare(`
+    SELECT ${columns}
+    FROM family_documents d
+    WHERE d.id = @id AND ${canSeeSql('d')}
+  `).get({ id, userId: userId(req) });
+}
+
+function replaceAccess(documentId, memberIds) {
+  const database = db.get();
+  database.prepare('DELETE FROM family_document_access WHERE document_id = ?').run(documentId);
+  const insert = database.prepare('INSERT OR IGNORE INTO family_document_access (document_id, user_id) VALUES (?, ?)');
+  for (const memberId of memberIds) insert.run(documentId, memberId);
+}
+
+function ensureFolder(key, name, actorId) {
+  return ensureModuleFolder(db.get(), { key, name }, actorId);
+}
+
+async function resolveDocumentContent(document) {
+  let dmsResolver;
+  if (document.storage_backend === 'dms') {
+    const account = loadDmsAccount(document.dms_account_id);
+    if (!account) throw new DmsDocumentUnavailableError();
+    dmsResolver = async () => dmsAdapterFactory(account).fetchContent(document.storage_key);
+  }
+  return readDocumentContent(document, { dmsResolver });
+}
+
+
+// Adapter Thumbnails liefert (Paperless). Wirft ThumbnailUnavailableError, wenn
+
+class ThumbnailUnavailableError extends Error {}
+
+async function resolveDmsThumbnail(account, storageKey) {
+  const adapter = dmsAdapterFactory(account);
+  if (typeof adapter.fetchThumbnail !== 'function') throw new ThumbnailUnavailableError();
+  const thumb = await adapter.fetchThumbnail(storageKey);
+  const mime = normalizeMime(thumb?.mime);
+  if (!thumb?.buffer?.length || !THUMBNAIL_MIME.has(mime)) throw new ThumbnailUnavailableError();
+  return { buffer: thumb.buffer, mime };
+}
+
+function sendThumbnail(res, thumb, cacheSeconds) {
+  res.setHeader('Content-Type', thumb.mime);
+  res.setHeader('Content-Length', String(thumb.buffer.length));
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', `private, max-age=${cacheSeconds}`);
+  res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'");
+  res.end(thumb.buffer);
+}
+
+function sendStorageError(res, error, fallbackMessage) {
+  if (!(error instanceof StorageError)) return false;
+  const status = error.storageCode === 'DOCUMENT_STORAGE_CONFIG_PROTECTED'
+    ? 409
+    : (
+        error.storageCode === 'DOCUMENT_STORAGE_INVALID_CONFIG'
+        || error.storageCode === 'DOCUMENT_STORAGE_NOT_CONFIGURED'
+      )
+      ? 400
+      : 502;
+  res.status(status).json({
+    error: fallbackMessage,
+    code: status,
+    storage_code: error.storageCode,
+  });
+  return true;
+}
+
+function storageConfigStatus() {
+  const config = getStorageConfig();
+  const status = getStorageStatus();
+  const local = getLocalStorageConfig();
+  const selectedBackend = getSelectedUploadBackend();
+  const activeBackend = getActiveUploadBackend();
+  const webdavCount = db.get().prepare(`
+    SELECT COUNT(*) AS count
+    FROM family_documents
+    WHERE storage_backend = 'webdav'
+  `).get().count;
+  const googleDrive = getGoogleDriveStatus();
+  const effectiveTarget = activeBackend === 'local_folder'
+    ? local.basePath
+    : activeBackend === 'webdav'
+      ? getEffectiveTarget(config)
+      : activeBackend === 'google_drive'
+        ? googleDrive.folder_name
+        : null;
+  return {
+    enabled: status.enabled,
+    configured: status.configured,
+    selected_upload_backend: selectedBackend,
+    active_upload_backend: activeBackend,
+    effective_target: effectiveTarget,
+    local_enabled: local.enabled,
+    local_path: local.basePath,
+    webdav_document_count: webdavCount,
+    google_drive_document_count: googleDrive.document_count,
+    google_drive: googleDrive,
+    last_test: status.lastTest,
+    last_error: status.lastError,
+    url: status.url,
+    username: status.username,
+    base_path: status.basePath,
+    password_configured: status.passwordConfigured,
+    env_controlled: status.envControlled,
+  };
+}
+
+function configProtected(message, options = {}) {
+  return new StorageError(
+    'DOCUMENT_STORAGE_CONFIG_PROTECTED',
+    message,
+    options
+  );
+}
+
+router.get('/storage/config', (req, res) => {
+  try {
+    if (!isAdmin(req)) {
+      return res.status(403).json({ error: 'Not authorized.', code: 403 });
+    }
+    res.json({ data: storageConfigStatus() });
+  } catch (err) {
+    log.error('GET /storage/config error:', err);
+    if (sendStorageError(res, err, err.message)) return;
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+router.put('/storage/config', async (req, res) => {
+  try {
+    if (!isAdmin(req)) {
+      return res.status(403).json({ error: 'Not authorized.', code: 403 });
+    }
+    if (
+      req.body.selected_upload_backend !== undefined
+      && !['local', 'webdav', 'google_drive'].includes(req.body.selected_upload_backend)
+    ) {
+      return res.status(400).json({
+        error: 'selected_upload_backend must be local, webdav, or google_drive.',
+        code: 400,
+      });
+    }
+    if (
+      req.body.confirm_existing_access !== undefined
+      && typeof req.body.confirm_existing_access !== 'boolean'
+    ) {
+      return res.status(400).json({
+        error: 'confirm_existing_access must be a boolean.',
+        code: 400,
+      });
+    }
+    if (
+      req.body.clear_password !== undefined
+      && typeof req.body.clear_password !== 'boolean'
+    ) {
+      return res.status(400).json({
+        error: 'clear_password must be a boolean.',
+        code: 400,
+      });
+    }
+
+    const existing = db.get().prepare(`
+      SELECT *
+      FROM family_documents
+      WHERE storage_backend = 'webdav'
+      ORDER BY id
+      LIMIT 1
+    `).get();
+    const current = getStorageConfig();
+    const proposed = resolveConfig(req.body);
+    const targetChanged = (
+      (!current.envControlled.url && Object.hasOwn(req.body, 'url'))
+      || (!current.envControlled.path
+        && (Object.hasOwn(req.body, 'path') || Object.hasOwn(req.body, 'basePath')))
+    );
+    if (targetChanged && proposed.url) {
+      await assertWebdavTargetAllowed(proposed);
+    }
+
+    if (existing) {
+      const deletingRequiredField = (
+        (!current.envControlled.url
+          && Object.hasOwn(req.body, 'url')
+          && String(req.body.url ?? '').trim() === '')
+        || (!current.envControlled.username
+          && Object.hasOwn(req.body, 'username')
+          && String(req.body.username ?? '').trim() === '')
+        || (!current.envControlled.password && req.body.clear_password === true)
+        || (!current.envControlled.path
+          && (Object.hasOwn(req.body, 'path') || Object.hasOwn(req.body, 'basePath'))
+          && String(req.body.path ?? req.body.basePath ?? '').trim() === '')
+      );
+      if (
+        deletingRequiredField
+        || !proposed.url
+        || !proposed.username
+        || !proposed.password
+        || !proposed.basePath
+      ) {
+        throw configProtected(
+          'Required WebDAV connection data cannot be removed while documents exist.'
+        );
+      }
+
+      const connectionChanged = (
+        getEffectiveTarget(proposed) !== getEffectiveTarget(current)
+        || proposed.username !== current.username
+        || proposed.password !== current.password
+      );
+      if (connectionChanged) {
+        if (req.body.confirm_existing_access !== true) {
+          throw configProtected(
+            'Changing WebDAV connection data requires explicit confirmation.'
+          );
+        }
+        try {
+          await verifyExistingWebdavDocument(existing, proposed);
+        } catch (error) {
+          if (error instanceof StorageError
+            && error.storageCode === 'DOCUMENT_STORAGE_CONFIG_PROTECTED') {
+            throw error;
+          }
+          throw configProtected(
+            'The proposed WebDAV configuration cannot read an existing document.',
+            { cause: error }
+          );
+        }
+      }
+    }
+
+    const selectorProvided = Object.hasOwn(req.body, 'selected_upload_backend');
+    const selectedBackend = selectorProvided
+      ? req.body.selected_upload_backend
+      : (isUploadBackendSelectionExplicit() ? getSelectedUploadBackend() : null);
+    if (selectedBackend === 'webdav' && (
+      !proposed.enabled
+      || !proposed.url
+      || !proposed.username
+      || !proposed.password
+      || !proposed.basePath
+    )) {
+      throw new StorageError(
+        'DOCUMENT_STORAGE_NOT_CONFIGURED',
+        'WebDAV must be enabled and fully configured while it is selected.'
+      );
+    }
+    if (selectedBackend === 'google_drive') {
+      const driveStatus = getGoogleDriveStatus();
+      if (!driveStatus.configured || !driveStatus.connected) {
+        throw new StorageError(
+          'DOCUMENT_STORAGE_NOT_CONFIGURED',
+          'Google Drive must be connected before it can be selected.'
+        );
+      }
+    }
+
+    saveStorageConfig(req.body);
+    if (selectorProvided) setSelectedUploadBackend(req.body.selected_upload_backend);
+    res.json({ data: storageConfigStatus() });
+  } catch (err) {
+    log.error('PUT /storage/config error:', err);
+    if (sendStorageError(res, err, err.message)) return;
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+router.post('/storage/test', async (req, res) => {
+  try {
+    if (!isAdmin(req)) {
+      return res.status(403).json({ error: 'Not authorized.', code: 403 });
+    }
+    await assertWebdavTargetAllowed(resolveConfig(req.body));
+    const result = await testStorageConnection(req.body);
+    res.json({ data: result });
+  } catch (err) {
+    log.error('POST /storage/test error:', err);
+    if (sendStorageError(res, err, err.message)) return;
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+router.get('/meta/options', (req, res) => {
+  try {
+    const dmsAccounts = db.get().prepare('SELECT id, name, provider FROM dms_accounts ORDER BY name COLLATE NOCASE').all();
+    res.json({
+      data: {
+        categories: CATEGORIES,
+        visibilities: VISIBILITIES,
+        statuses: STATUSES,
+        max_file_size: MAX_FILE_BYTES,
+        allowed_mime_types: Array.from(ALLOWED_MIME),
+        storage_providers: ['local', 'external'],
+        active_upload_backend: getActiveUploadBackend(),
+
+
+        is_admin: isAdmin(req),
+        dms_accounts: isAdmin(req) ? dmsAccounts : [],
+      },
+    });
+  } catch (err) {
+    log.error('GET /meta/options error:', err);
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+function allFolders() {
+  return db.get().prepare('SELECT id, name, parent_id FROM family_document_folders').all();
+}
+
+/** Bind a destructive confirmation to exact folder and document identities. */
+function folderDeleteSnapshot(folderIds, documentIds, linkedState) {
+  const numericSort = (a, b) => a - b;
+  const payload = JSON.stringify({
+    folders: Array.from(folderIds || [], Number).sort(numericSort),
+    documents: Array.from(documentIds || [], Number).sort(numericSort),
+    links: linkedState,
+  });
+  return createHmac('sha256', folderDeleteSnapshotKey)
+    .update('aashiyana:folder-delete:v1\0')
+    .update(payload)
+    .digest('hex');
+}
+
+/** Exact link identities affected by deleting the selected documents. */
+function folderDeleteLinkedState(documentIds) {
+  if (!documentIds.length) {
+    return {
+      calendar_events: [], housekeeping_work_sessions: [], expense_groups: [],
+      settlements: [], expense_attachments: [], task_documents: [],
+      budget_entry_attachments: [], inventory_item_documents: [],
+    };
+  }
+  const params = Object.fromEntries(documentIds.map((value, index) => [`d${index}`, value]));
+  const placeholders = documentIds.map((_value, index) => `@d${index}`).join(',');
+  const ids = (table, column, identity = 'id') => db.get().prepare(`
+    SELECT ${identity} AS identity
+      FROM ${table}
+     WHERE ${column} IN (${placeholders})
+     ORDER BY ${identity}
+  `).all(params).map((row) => row.identity);
+  return {
+    calendar_events: ids('calendar_events', 'attachment_document_id'),
+    housekeeping_work_sessions: ids('housekeeping_work_sessions', 'receipt_document_id'),
+    expense_groups: ids('expense_groups', 'avatar_document_id'),
+    settlements: ids('settlements', 'proof_document_id'),
+    expense_attachments: ids('expense_attachments', 'document_id'),
+    task_documents: ids('task_documents', 'document_id', "printf('%d:%d', task_id, document_id)"),
+    budget_entry_attachments: ids('budget_entry_attachments', 'document_id'),
+    inventory_item_documents: ids('inventory_item_documents', 'document_id'),
+  };
+}
+
+function folderDeleteLinkedRecords(state) {
+  return {
+    calendar: state.calendar_events.length,
+    housekeeping: state.housekeeping_work_sessions.length,
+    split_expenses: state.expense_groups.length + state.settlements.length + state.expense_attachments.length,
+    tasks: state.task_documents.length,
+    budget: state.budget_entry_attachments.length,
+    inventory: state.inventory_item_documents.length,
+  };
+}
+
+const MOVE_ISSUE_MESSAGES = {
+  'self':           'A folder cannot be inside itself.',
+  'descendant':     'A folder cannot be moved into its own subfolder.',
+  'missing-parent': 'Parent folder not found.',
+  'too-deep':       `Folders can be nested at most ${MAX_FOLDER_DEPTH} levels deep.`,
+};
+
+function folderMoveError(folderId, parentId) {
+  const issue = folderMoveIssue(allFolders(), folderId, parentId);
+  return issue ? MOVE_ISSUE_MESSAGES[issue] : null;
+}
+
+function parentId(value) {
+  if (value === undefined || value === null || value === '') return { value: null, error: null };
+  const num = Number(value);
+  if (!Number.isInteger(num) || num <= 0) return { value: null, error: 'Invalid parent folder id.' };
+  return { value: num, error: null };
+}
+
+router.get('/folders', (_req, res) => {
+  try {
+
+
+
+
+    //
+
+
+
+    const rows = db.get().prepare(`
+      SELECT id, name, parent_id, module_key, created_by, created_at, updated_at
+      FROM family_document_folders
+      ORDER BY name COLLATE NOCASE ASC
+    `).all();
+    res.json({ data: rows });
+  } catch (err) {
+    log.error('GET /folders error:', err);
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+router.get('/folders/:id/delete-impact', (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'Invalid folder id.', code: 400 });
+    }
+    const existing = db.get().prepare('SELECT id FROM family_document_folders WHERE id = ?').get(id);
+    if (!existing) return res.status(404).json({ error: 'Folder not found.', code: 404 });
+
+    const subtree = [...subtreeIds(allFolders(), id)];
+    const folderParams = Object.fromEntries(subtree.map((value, i) => [`f${i}`, value]));
+    const folderPlaceholders = subtree.map((_v, i) => `@f${i}`).join(',');
+    const documents = db.get()
+      .prepare(`SELECT id, created_by FROM family_documents WHERE folder_id IN (${folderPlaceholders})`)
+      .all(folderParams);
+    const visibleDocuments = db.get()
+      .prepare(`
+        SELECT d.id, d.created_by
+        FROM family_documents d
+        WHERE d.folder_id IN (${folderPlaceholders})
+          AND ${documentVisibleSql('d')}
+      `)
+      .all({ ...folderParams, userId: userId(req) });
+    const canDeleteDocuments = visibleDocuments.length === documents.length
+      && (isAdmin(req) || visibleDocuments.every((document) => document.created_by === userId(req)));
+
+    const linkedState = folderDeleteLinkedState(documents.map((document) => document.id));
+    const visibleLinkedState = folderDeleteLinkedState(visibleDocuments.map((document) => document.id));
+    res.json({ data: {
+      id,
+      removed_folders: subtree.length,
+      documents: visibleDocuments.length,
+      can_delete_documents: canDeleteDocuments,
+      linked_records: folderDeleteLinkedRecords(visibleLinkedState),
+      snapshot: folderDeleteSnapshot(subtree, documents.map((document) => document.id), linkedState),
+    } });
+  } catch (err) {
+    log.error('GET /folders/:id/delete-impact error:', err);
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+const FOLDER_COLUMNS = 'id, name, parent_id, module_key, created_by, created_at, updated_at';
+
+router.post('/folders', (req, res) => {
+  try {
+    const vName = str(req.body.name, 'Name', { max: MAX_TITLE });
+    if (vName.error) return res.status(400).json({ error: vName.error, code: 400 });
+    const vParent = parentId(req.body.parent_id);
+    if (vParent.error) return res.status(400).json({ error: vParent.error, code: 400 });
+    if (vParent.value !== null && activeFolderTreeDeletes.has(vParent.value)) {
+      return deletionInProgress(res);
+    }
+
+    const moveError = folderMoveError(null, vParent.value);
+    if (moveError) return res.status(400).json({ error: moveError, code: 400 });
+
+    const result = db.get().prepare('INSERT INTO family_document_folders (name, parent_id, created_by) VALUES (?, ?, ?)')
+      .run(vName.value, vParent.value, userId(req));
+    const row = db.get().prepare(`SELECT ${FOLDER_COLUMNS} FROM family_document_folders WHERE id = ?`)
+      .get(result.lastInsertRowid);
+    res.status(201).json({ data: row });
+  } catch (err) {
+    if (err.message?.includes('UNIQUE constraint')) {
+
+
+      return res.status(409).json({ error: 'A folder with this name already exists here.', code: 409 });
+    }
+    log.error('POST /folders error:', err);
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+router.put('/folders/:id', (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'Invalid folder id.', code: 400 });
+    }
+    if (activeFolderTreeDeletes.has(id)) return deletionInProgress(res);
+    const existing = db.get().prepare('SELECT id, name, parent_id FROM family_document_folders WHERE id = ?').get(id);
+    if (!existing) return res.status(404).json({ error: 'Folder not found.', code: 404 });
+
+
+
+
+
+    let name = existing.name;
+    if (req.body.name !== undefined) {
+      const vName = str(req.body.name, 'Name', { max: MAX_TITLE });
+      if (vName.error) return res.status(400).json({ error: vName.error, code: 400 });
+      name = vName.value;
+    }
+
+    let parent = existing.parent_id;
+    if (req.body.parent_id !== undefined) {
+      const vParent = parentId(req.body.parent_id);
+      if (vParent.error) return res.status(400).json({ error: vParent.error, code: 400 });
+      if (vParent.value !== null && activeFolderTreeDeletes.has(vParent.value)) {
+        return deletionInProgress(res);
+      }
+      const moveError = folderMoveError(id, vParent.value);
+      if (moveError) return res.status(400).json({ error: moveError, code: 400 });
+      parent = vParent.value;
+    }
+
+    db.get().prepare('UPDATE family_document_folders SET name = ?, parent_id = ? WHERE id = ?')
+      .run(name, parent, id);
+    const row = db.get().prepare(`SELECT ${FOLDER_COLUMNS} FROM family_document_folders WHERE id = ?`).get(id);
+    res.json({ data: row });
+  } catch (err) {
+    if (err.message?.includes('UNIQUE constraint')) {
+      return res.status(409).json({ error: 'A folder with this name already exists here.', code: 409 });
+    }
+    log.error('PUT /folders/:id error:', err);
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+router.delete('/folders/:id', async (req, res) => {
+  let deletionLock = null;
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'Invalid folder id.', code: 400 });
+    }
+    const documentAction = req.query.documents || 'unfile';
+    if (!['unfile', 'delete'].includes(documentAction)) {
+      return res.status(400).json({ error: 'Invalid folder document action.', code: 400 });
+    }
+    const parseExpectedCount = (value) => {
+      if (value === undefined) return null;
+      const count = Number(value);
+      return Number.isInteger(count) && count >= 0 ? count : Number.NaN;
+    };
+    const expectedDocuments = parseExpectedCount(req.query.expected_documents);
+    const expectedFolders = parseExpectedCount(req.query.expected_folders);
+    const expectedSnapshot = req.query.expected_snapshot === undefined
+      ? null
+      : String(req.query.expected_snapshot);
+    if (Number.isNaN(expectedDocuments) || Number.isNaN(expectedFolders)) {
+      return res.status(400).json({ error: 'Invalid expected folder impact.', code: 400 });
+    }
+    if (expectedSnapshot !== null && !/^[a-f0-9]{64}$/.test(expectedSnapshot)) {
+      return res.status(400).json({ error: 'Invalid expected folder snapshot.', code: 400 });
+    }
+    const existing = db.get().prepare('SELECT id FROM family_document_folders WHERE id = ?').get(id);
+    if (!existing) return res.status(404).json({ error: 'Folder not found.', code: 404 });
+
+
+    // nimmt seinen ganzen Teilbaum mit (ON DELETE CASCADE, Migration v164),
+
+
+    // Oberflaeche vorher fragen kann.
+    //
+
+
+
+    // Aktion und loescht Inhalt plus Zeile nacheinander.
+    const subtree = [...subtreeIds(allFolders(), id)];
+    const folderParams = Object.fromEntries(subtree.map((value, i) => [`f${i}`, value]));
+    const folderPlaceholders = subtree.map((_v, i) => `@f${i}`).join(',');
+    const documents = db.get()
+      // content_data bleibt bewusst draussen: Legacy-BLOBs koennen bis zum
+
+
+      .prepare(`
+        SELECT id, name, storage_backend, storage_key, created_by
+        FROM family_documents
+        WHERE folder_id IN (${folderPlaceholders})
+        ORDER BY id ASC
+      `)
+      .all(folderParams);
+    const visibleDocumentIds = new Set(db.get()
+      .prepare(`
+        SELECT d.id
+        FROM family_documents d
+        WHERE d.folder_id IN (${folderPlaceholders})
+          AND ${documentVisibleSql('d')}
+      `)
+      .all({ ...folderParams, userId: userId(req) })
+      .map((document) => document.id));
+    const deleteDocuments = documentAction === 'delete';
+
+    if (deleteDocuments && expectedSnapshot === null) {
+      return res.status(400).json({
+        error: 'A current folder deletion preview is required.',
+        code: 400,
+      });
+    }
+
+
+
+
+
+    // alte Clients ohne Erwartungswerte kompatibel.
+    const currentLinkedState = folderDeleteLinkedState(documents.map((document) => document.id));
+    const currentSnapshot = folderDeleteSnapshot(
+      subtree,
+      documents.map((document) => document.id),
+      currentLinkedState,
+    );
+    if ((expectedDocuments !== null && expectedDocuments !== visibleDocumentIds.size)
+        || (expectedFolders !== null && expectedFolders !== subtree.length)
+        || (expectedSnapshot !== null && expectedSnapshot !== currentSnapshot)) {
+      return res.status(409).json({
+        error: 'Folder contents changed. Review the deletion impact and try again.',
+        code: 409,
+        reason: 'FOLDER_CONTENT_CHANGED',
+      });
+    }
+
+
+
+
+    if (deleteDocuments && (visibleDocumentIds.size !== documents.length
+        || (!isAdmin(req) && documents.some((document) => document.created_by !== userId(req))))) {
+      return res.status(403).json({ error: 'Not authorized to delete every document in this folder.', code: 403 });
+    }
+
+    const overlapsActiveDeletion = subtree.some((folderId) => activeFolderTreeDeletes.has(folderId))
+      || documents.some((document) => documentDeleteIsActive(document.id));
+    if (overlapsActiveDeletion) return deletionInProgress(res);
+
+    if (deleteDocuments) {
+      deletionLock = {
+        folderIds: [...subtree],
+        documentIds: documents.map((document) => document.id),
+      };
+      deletionLock.folderIds.forEach((folderId) => activeFolderTreeDeletes.add(folderId));
+      lockDocumentDeletes(deletionLock.documentIds);
+    }
+
+    if (deleteDocuments) {
+      let deletedDocuments = 0;
+      const failedDocuments = [];
+      const storageDeletedDocuments = [];
+      for (const document of documents) {
+        try {
+          await deleteDocumentContent(document);
+          storageDeletedDocuments.push(document);
+        } catch (err) {
+          log.error(`DELETE /folders/:id document ${document.id} storage error:`, err);
+          failedDocuments.push({
+            id: document.id,
+            name: document.name,
+            failure_stage: 'storage',
+            storage_code: err instanceof StorageError ? err.storageCode : 'DOCUMENT_DELETE_FAILED',
+          });
+        }
+      }
+
+      // Keep every row visible for the whole asynchronous storage phase. Link
+      // writers can then distinguish an in-flight target from a missing one
+      // and return the stable 409 without exposing hidden document IDs. SQLite
+      // row deletion is synchronous, so no writer can interleave once this
+      // second phase starts.
+      for (const document of storageDeletedDocuments) {
+        try {
+          db.get().prepare('DELETE FROM family_documents WHERE id = ?').run(document.id);
+          deletedDocuments += 1;
+        } catch (err) {
+          log.error(`DELETE /folders/:id document ${document.id} database error:`, err);
+          failedDocuments.push({
+            id: document.id,
+            name: document.name,
+            failure_stage: 'database',
+            error_code: 'DOCUMENT_DATABASE_DELETE_FAILED',
+          });
+        }
+      }
+
+
+
+
+
+
+      const currentSubtree = [...subtreeIds(allFolders(), id)];
+      const currentFolderParams = Object.fromEntries(currentSubtree.map((value, i) => [`f${i}`, value]));
+      const currentFolderPlaceholders = currentSubtree.map((_v, i) => `@f${i}`).join(',');
+      const remainingDocuments = db.get()
+        .prepare(`
+          SELECT id, name
+          FROM family_documents
+          WHERE folder_id IN (${currentFolderPlaceholders})
+          ORDER BY id ASC
+        `)
+        .all(currentFolderParams);
+      const originalFolderIds = new Set(subtree);
+      const originalDocumentIds = new Set(documents.map((document) => document.id));
+      const contentsChanged = currentSubtree.length !== subtree.length
+        || currentSubtree.some((folderId) => !originalFolderIds.has(folderId))
+        || remainingDocuments.some((document) => !originalDocumentIds.has(document.id));
+      const knownFailures = new Set(failedDocuments.map((document) => document.id));
+      for (const document of remainingDocuments) {
+        if (!knownFailures.has(document.id)) {
+          failedDocuments.push({
+            id: document.id,
+            name: document.name,
+            failure_stage: 'concurrency',
+            error_code: 'FOLDER_CONTENT_CHANGED',
+          });
+        }
+      }
+
+
+
+
+      // ehrlicher 207-Sammelstatus macht den Teilfortschritt sichtbar.
+      if (failedDocuments.length || contentsChanged) {
+        return res.status(207).json({ data: {
+          id,
+          removed_folders: 0,
+          deleted_documents: deletedDocuments,
+          failed_documents: failedDocuments,
+          contents_changed: contentsChanged,
+          folder_deleted: false,
+        } });
+      }
+    }
+
+    db.get().prepare('DELETE FROM family_document_folders WHERE id = ?').run(id);
+    res.json({ data: {
+      id,
+      removed_folders: subtree.length,
+      unfiled_documents: deleteDocuments ? 0 : visibleDocumentIds.size,
+      deleted_documents: deleteDocuments ? documents.length : 0,
+      failed_documents: [],
+      folder_deleted: true,
+    } });
+  } catch (err) {
+    log.error('DELETE /folders/:id error:', err);
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  } finally {
+    deletionLock?.folderIds.forEach((folderId) => activeFolderTreeDeletes.delete(folderId));
+    unlockDocumentDeletes(deletionLock?.documentIds);
+  }
+});
+
+router.get('/', (req, res) => {
+  try {
+    const status = STATUSES.includes(req.query.status) ? req.query.status : 'active';
+    const category = CATEGORIES.includes(req.query.category) ? req.query.category : null;
+    const folderId = req.query.folder_id !== undefined && req.query.folder_id !== ''
+      ? Number(req.query.folder_id)
+      : null;
+
+    let subtree = null;
+    if (folderId != null && Number.isInteger(folderId) && folderId > 0) {
+      const exists = db.get().prepare('SELECT id FROM family_document_folders WHERE id = ?').get(folderId);
+      subtree = exists ? [...subtreeIds(allFolders(), folderId)] : [folderId];
+    }
+
+    const folderParams = Object.fromEntries((subtree ?? []).map((value, i) => [`f${i}`, value]));
+    const folderClause = subtree
+      ? `AND d.folder_id IN (${subtree.map((_v, i) => `@f${i}`).join(',')})`
+      : '';
+    const params = { userId: userId(req), status, category, ...folderParams };
+    const rows = db.get().prepare(`
+      ${documentSelect()}
+      WHERE ${canSeeSql('d')}
+        AND d.status = @status
+        AND (@category IS NULL OR d.category = @category)
+        ${folderClause}
+      GROUP BY d.id
+      ORDER BY d.updated_at DESC
+    `).all(params);
+    res.json({ data: rows.map(normalizeDocument) });
+  } catch (err) {
+    log.error('GET / error:', err);
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+router.post('/', async (req, res) => {
+  let stagedUpload;
+  try {
+    const vName = str(req.body.name, 'Name', { max: MAX_TITLE });
+    const vDescription = str(req.body.description, 'Description', { max: MAX_TEXT, required: false });
+    const vOriginalName = str(req.body.original_name, 'Original filename', { max: MAX_TITLE });
+    const vFolderName = str(req.body.folder_name, 'Folder name', { max: MAX_TITLE, required: false });
+    const errors = collectErrors([vName, vDescription, vOriginalName, vFolderName]);
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
+
+
+
+
+
+    const folderKey = isModuleFolderKey(req.body.folder_key) ? req.body.folder_key : null;
+
+    const category = CATEGORIES.includes(req.body.category) ? req.body.category : 'other';
+    const visibility = VISIBILITIES.includes(req.body.visibility) ? req.body.visibility : 'family';
+    const vFolderId = req.body.folder_id !== undefined && req.body.folder_id !== null && req.body.folder_id !== ''
+      ? validateId(req.body.folder_id, 'folder_id')
+      : { value: null, error: null };
+    if (vFolderId.error) return res.status(400).json({ error: vFolderId.error, code: 400 });
+    if (req.body.folder_id !== undefined && vFolderId.value !== null
+        && activeFolderTreeDeletes.has(vFolderId.value)) {
+      return deletionInProgress(res);
+    }
+    const parsed = parseDataUrl(req.body.content_data);
+    if (parsed.error) return res.status(400).json({ error: parsed.error, code: 400 });
+
+    const allowedIds = visibility === 'restricted' ? parseMemberIds(req.body.allowed_member_ids) : [];
+    stagedUpload = await stageDocumentUpload({
+      buffer: parsed.buffer,
+      mime: parsed.mime,
+      category,
+      originalName: vOriginalName.value,
+    });
+    const database = db.get();
+    const row = database.transaction(() => {
+      const folderId = vFolderId.value ?? ensureFolder(folderKey, vFolderName.value, userId(req));
+      const result = database.prepare(`
+        INSERT INTO family_documents (
+          name, description, category, visibility, folder_id, original_name,
+          mime_type, file_size, content_data, storage_provider, storage_backend,
+          storage_key, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        vName.value,
+        vDescription.value,
+        category,
+        visibility,
+        folderId,
+        vOriginalName.value,
+        parsed.mime,
+        parsed.size,
+        stagedUpload.content_data,
+        stagedUpload.storage_provider,
+        stagedUpload.storage_backend,
+        stagedUpload.storage_key,
+        userId(req)
+      );
+      if (visibility === 'restricted') replaceAccess(result.lastInsertRowid, allowedIds);
+      return database.prepare(`
+        ${documentSelect()}
+        WHERE d.id = ?
+        GROUP BY d.id
+      `).get(result.lastInsertRowid);
+    })();
+    res.status(201).json({ data: normalizeDocument(row) });
+  } catch (err) {
+    if (err instanceof StorageError) {
+      log.error('POST / storage error:', err);
+      return sendStorageError(res, err, 'Document storage upload failed.');
+    }
+    log.error('POST / error:', err);
+    if (stagedUpload) {
+      try {
+        await cleanupStagedUpload(stagedUpload);
+      } catch (cleanupError) {
+        log.error('POST / cleanup error after database failure:', cleanupError);
+        return sendStorageError(
+          res,
+          cleanupError,
+          'Document storage cleanup failed.'
+        );
+      }
+    }
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+router.put('/:id', (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const existing = getVisibleDocument(id, req);
+    if (!existing) return res.status(404).json({ error: 'Document not found.', code: 404 });
+    if (existing.created_by !== userId(req) && !isAdmin(req)) return res.status(403).json({ error: 'Not authorized.', code: 403 });
+    if (documentDeleteIsActive(id)) return documentDeletionInProgress(res);
+
+    const vName = req.body.name !== undefined ? str(req.body.name, 'Name', { max: MAX_TITLE }) : { value: null };
+    const vDescription = req.body.description !== undefined ? str(req.body.description, 'Description', { max: MAX_TEXT, required: false }) : { value: null };
+    const errors = collectErrors([vName, vDescription]);
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
+
+    const category = req.body.category !== undefined && CATEGORIES.includes(req.body.category) ? req.body.category : null;
+    const visibility = req.body.visibility !== undefined && VISIBILITIES.includes(req.body.visibility) ? req.body.visibility : null;
+    const status = req.body.status !== undefined && STATUSES.includes(req.body.status) ? req.body.status : null;
+    const vFolderId = req.body.folder_id !== undefined && req.body.folder_id !== null && req.body.folder_id !== ''
+      ? validateId(req.body.folder_id, 'folder_id')
+      : { value: null, error: null };
+    if (vFolderId.error) return res.status(400).json({ error: vFolderId.error, code: 400 });
+    if (req.body.folder_id !== undefined && vFolderId.value !== null
+        && activeFolderTreeDeletes.has(vFolderId.value)) {
+      return deletionInProgress(res);
+    }
+    db.get().prepare(`
+      UPDATE family_documents
+      SET name = COALESCE(?, name),
+          description = ?,
+          category = COALESCE(?, category),
+          visibility = COALESCE(?, visibility),
+          status = COALESCE(?, status),
+          folder_id = ?
+      WHERE id = ?
+    `).run(
+      req.body.name !== undefined ? vName.value : null,
+      req.body.description !== undefined ? vDescription.value : existing.description,
+      category,
+      visibility,
+      status,
+      req.body.folder_id !== undefined ? vFolderId.value : existing.folder_id,
+      id
+    );
+    if ((visibility || existing.visibility) === 'restricted') replaceAccess(id, parseMemberIds(req.body.allowed_member_ids));
+    else replaceAccess(id, []);
+
+    const row = db.get().prepare(`${documentSelect()} WHERE d.id = ? GROUP BY d.id`).get(id);
+    res.json({ data: normalizeDocument(row) });
+  } catch (err) {
+    log.error('PUT /:id error:', err);
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+router.patch('/:id/archive', (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const existing = getVisibleDocument(id, req);
+    if (!existing) return res.status(404).json({ error: 'Document not found.', code: 404 });
+    if (existing.created_by !== userId(req) && !isAdmin(req)) return res.status(403).json({ error: 'Not authorized.', code: 403 });
+    if (documentDeleteIsActive(id)) return documentDeletionInProgress(res);
+    const status = req.body.archived === false ? 'active' : 'archived';
+    db.get().prepare('UPDATE family_documents SET status = ? WHERE id = ?').run(status, id);
+    res.json({ data: { id, status } });
+  } catch (err) {
+    log.error('PATCH /:id/archive error:', err);
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+router.get('/:id/thumbnail', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const doc = getVisibleDocument(id, req, true);
+    if (!doc) return res.status(404).json({ error: 'Document not found.', code: 404 });
+    if (doc.storage_backend !== 'dms') {
+      return res.status(415).json({ error: 'Thumbnail not available for this document.', code: 415 });
+    }
+    const account = loadDmsAccount(doc.dms_account_id);
+    if (!account) return res.status(404).json({ error: 'Linked DMS account is gone.', code: 404 });
+    const thumb = await resolveDmsThumbnail(account, doc.storage_key);
+    sendThumbnail(res, thumb, 300);
+  } catch (err) {
+    if (err instanceof ThumbnailUnavailableError) {
+      return res.status(415).json({ error: 'Thumbnail not available for this document.', code: 415 });
+    }
+    log.error('GET /:id/thumbnail error:', err);
+    res.status(502).json({ error: 'Failed to load thumbnail.', code: 502 });
+  }
+});
+
+router.get('/:id/preview', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const doc = getVisibleDocument(id, req, true);
+    if (!doc) return res.status(404).json({ error: 'Document not found.', code: 404 });
+    const content = await resolveDocumentContent(doc);
+    const rawMime = effectiveMime(content, doc);
+
+
+    if (!PREVIEWABLE_MIME.has(rawMime)) {
+      return res.status(415).json({ error: 'Preview not supported for this file type.', code: 415 });
+    }
+    const filename = encodeURIComponent((doc.original_name || `${doc.id}`).replace(/[/\\]/g, '_'));
+    res.setHeader('Content-Type', rawMime);
+    res.setHeader('Content-Length', String(content.buffer.length));
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.setHeader('Cache-Control', doc.storage_backend === 'dms'
+      ? 'private, max-age=60'
+      : 'private, max-age=300');
+
+
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+
+
+    // ("This page was blocked by Chrome"). Da `nosniff` + fester Content-Type application/pdf
+
+    if (rawMime === 'application/pdf') {
+      res.setHeader('Content-Security-Policy', "default-src 'self'; style-src 'unsafe-inline'; object-src 'self'");
+    } else {
+      res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'");
+    }
+    res.end(content.buffer);
+  } catch (err) {
+    if (err instanceof DmsDocumentUnavailableError) {
+      return res.status(404).json({ error: 'Linked DMS account is gone.', code: 404 });
+    }
+    log.error('GET /:id/preview error:', err);
+    if (sendStorageError(res, err, 'Document storage read failed.')) return;
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+router.get('/:id/download', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const doc = getVisibleDocument(id, req, true);
+    if (!doc) return res.status(404).json({ error: 'Document not found.', code: 404 });
+    const content = await resolveDocumentContent(doc);
+    const rawMime = effectiveMime(content, doc);
+    const filename = encodeURIComponent((doc.original_name || `${doc.id}`).replace(/[/\\]/g, '_'));
+    res.setHeader('Content-Type', rawMime);
+    res.setHeader('Content-Length', String(content.buffer.length));
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.end(content.buffer);
+  } catch (err) {
+    if (err instanceof DmsDocumentUnavailableError) {
+      return res.status(404).json({ error: 'Linked DMS account is gone.', code: 404 });
+    }
+    log.error('GET /:id/download error:', err);
+    if (sendStorageError(res, err, 'Document storage read failed.')) return;
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+router.delete('/:id', async (req, res) => {
+  let lockedId = null;
+  try {
+    const id = Number(req.params.id);
+    const existing = getVisibleDocument(id, req, true);
+    if (!existing) return res.status(404).json({ error: 'Document not found.', code: 404 });
+    if (existing.created_by !== userId(req) && !isAdmin(req)) return res.status(403).json({ error: 'Not authorized.', code: 403 });
+    if (documentDeleteIsActive(id)) return documentDeletionInProgress(res);
+    lockDocumentDeletes([id]);
+    lockedId = id;
+    await deleteDocumentContent(existing);
+    db.get().prepare('DELETE FROM family_documents WHERE id = ?').run(id);
+    res.status(204).end();
+  } catch (err) {
+    log.error('DELETE /:id error:', err);
+    if (sendStorageError(res, err, 'Document storage delete failed.')) return;
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  } finally {
+    if (lockedId !== null) unlockDocumentDeletes([lockedId]);
+  }
+});
+
+export default router;

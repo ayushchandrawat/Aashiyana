@@ -1,0 +1,406 @@
+
+import express from 'express';
+import * as db from '../../db.js';
+import * as v from '../../middleware/validate.js';
+import { cycleToCsv } from '../../services/health-export.js';
+import { syncCycleRemindersForUser } from '../../services/cycle-reminders.js';
+import { normalizeSymptomEntries } from '../../../public/utils/health-cycle.js';
+import {
+  log, VISIBILITIES, FLOW_LEVELS, MAX_UNIT,
+  viewerId, visibilityClause, toBit, applyUpdate, badRequest,
+  exportFilename, sendCsv, exportRange,
+} from './helpers.js';
+
+const router = express.Router();
+
+
+
+
+
+const MAX_SYMPTOMS_COUNT = 40;
+
+
+
+
+
+// Koerpertemperatur-Baender, keine medizinische Norm.
+const BASAL_TEMP_RANGE = { c: [34, 42], f: [93, 108] };
+
+/** Validiert (basal_temp, basal_temp_unit) zusammen - beide oder keins. */
+function validateBasalTemp(rawTemp, rawUnit) {
+  if (rawTemp === undefined || rawTemp === null || rawTemp === '') return { temp: null, unit: null, error: null };
+  const unit = String(rawUnit || '').toLowerCase();
+  const range = BASAL_TEMP_RANGE[unit];
+  if (!range) return { temp: null, unit: null, error: 'basal_temp_unit must be "c" or "f" when basal_temp is set.' };
+  const n = Number(rawTemp);
+  if (!Number.isFinite(n) || n < range[0] || n > range[1]) {
+    return { temp: null, unit: null, error: `basal_temp must be a number between ${range[0]} and ${range[1]} for unit "${unit}".` };
+  }
+  return { temp: n, unit, error: null };
+}
+
+function symptomsForLog(database, dayLogId) {
+  return database.prepare(
+    'SELECT symptom_key AS key, intensity FROM cycle_day_log_symptoms WHERE day_log_id = ? ORDER BY id'
+  ).all(dayLogId);
+}
+
+function symptomsForLogs(database, dayLogIds) {
+  const byLog = new Map(dayLogIds.map((id) => [id, []]));
+  if (dayLogIds.length === 0) return byLog;
+  const placeholders = dayLogIds.map(() => '?').join(', ');
+  const rows = database.prepare(
+    `SELECT day_log_id, symptom_key AS key, intensity FROM cycle_day_log_symptoms WHERE day_log_id IN (${placeholders}) ORDER BY id`
+  ).all(...dayLogIds);
+  for (const { day_log_id, key, intensity } of rows) byLog.get(day_log_id).push({ key, intensity });
+  return byLog;
+}
+
+function replaceSymptoms(database, dayLogId, entries) {
+  database.prepare('DELETE FROM cycle_day_log_symptoms WHERE day_log_id = ?').run(dayLogId);
+  const insert = database.prepare(
+    'INSERT INTO cycle_day_log_symptoms (day_log_id, symptom_key, intensity) VALUES (?, ?, ?)'
+  );
+  for (const entry of entries) insert.run(dayLogId, entry.key, entry.intensity);
+}
+
+// ---- Perioden-Episoden ----
+
+// GET /cycle/periods?user_id=&from=&to=
+router.get('/cycle/periods', (req, res) => {
+  try {
+    const viewer   = viewerId(req);
+    const personId = req.query.user_id ? parseInt(req.query.user_id, 10) : null;
+    const clause   = visibilityClause('p', viewer, personId);
+    const params   = [...clause.params];
+    let sql = `SELECT p.* FROM cycle_periods p WHERE ${clause.sql}`;
+    if (req.query.from) { sql += ' AND p.start_date >= ?'; params.push(String(req.query.from)); }
+    if (req.query.to)   { sql += ' AND p.start_date <= ?'; params.push(String(req.query.to)); }
+    sql += ' ORDER BY p.start_date DESC, p.id DESC';
+    res.json({ data: db.get().prepare(sql).all(...params) });
+  } catch (err) {
+    log.error('Error listing cycle periods:', err.message);
+    res.status(500).json({ error: 'Internal error.', code: 500 });
+  }
+});
+
+// POST /cycle/periods
+router.post('/cycle/periods', (req, res) => {
+  try {
+    const viewer = viewerId(req);
+    const b = req.body || {};
+    const startDate  = v.date(b.start_date, 'start_date', true);
+    const endDate    = v.date(b.end_date, 'end_date');
+    const note       = v.str(b.note, 'note', { max: v.MAX_TEXT, required: false });
+    const visibility = v.oneOf(b.visibility, VISIBILITIES, 'visibility');
+
+    const errors = v.collectErrors([startDate, endDate, note, visibility]);
+    if (endDate.value && startDate.value && endDate.value < startDate.value) {
+      errors.push('end_date must not be before start_date.');
+    }
+    if (errors.length) return badRequest(res, errors);
+
+    const result = db.get().prepare(`
+      INSERT INTO cycle_periods (user_id, start_date, end_date, note, visibility)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(viewer, startDate.value, endDate.value, note.value, visibility.value || 'private');
+
+
+    // geloggter Zyklus verschiebt sofort predictCycle()s naechsten
+
+    try {
+      syncCycleRemindersForUser(db.get(), viewer);
+    } catch (err) {
+      log.error('Error syncing cycle reminders after period change:', err.message);
+    }
+
+    res.status(201).json({ data: db.get().prepare('SELECT * FROM cycle_periods WHERE id = ?').get(result.lastInsertRowid) });
+  } catch (err) {
+    log.error('Error creating cycle period:', err.message);
+    res.status(500).json({ error: 'Internal error.', code: 500 });
+  }
+});
+
+// PATCH /cycle/periods/:id
+router.patch('/cycle/periods/:id', (req, res) => {
+  try {
+    const viewer = viewerId(req);
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Ungültige ID.', code: 400 });
+
+    const existing = db.get().prepare('SELECT * FROM cycle_periods WHERE id = ? AND user_id = ?').get(id, viewer);
+    if (!existing) return res.status(404).json({ error: 'Periode nicht gefunden.', code: 404 });
+
+    const b = req.body || {};
+    const fields = {};
+    const checks = [];
+
+    if (b.start_date !== undefined) { const r = v.date(b.start_date, 'start_date', true); checks.push(r); if (!r.error) fields.start_date = r.value; }
+    if (b.end_date !== undefined)   { const r = v.date(b.end_date, 'end_date');           checks.push(r); if (!r.error) fields.end_date = r.value; }
+    if (b.note !== undefined)       { const r = v.str(b.note, 'note', { max: v.MAX_TEXT, required: false }); checks.push(r); if (!r.error) fields.note = r.value; }
+    if (b.visibility !== undefined) { const r = v.oneOf(b.visibility, VISIBILITIES, 'visibility'); checks.push(r); if (!r.error && r.value) fields.visibility = r.value; }
+
+    const errors = v.collectErrors(checks);
+    const nextStart = fields.start_date !== undefined ? fields.start_date : existing.start_date;
+    const nextEnd   = fields.end_date   !== undefined ? fields.end_date   : existing.end_date;
+    if (nextEnd && nextStart && nextEnd < nextStart) errors.push('end_date must not be before start_date.');
+    if (errors.length) return badRequest(res, errors);
+
+    applyUpdate('cycle_periods', id, fields);
+    res.json({ data: db.get().prepare('SELECT * FROM cycle_periods WHERE id = ?').get(id) });
+  } catch (err) {
+    log.error('Error updating cycle period:', err.message);
+    res.status(500).json({ error: 'Internal error.', code: 500 });
+  }
+});
+
+// DELETE /cycle/periods/:id
+router.delete('/cycle/periods/:id', (req, res) => {
+  try {
+    const viewer = viewerId(req);
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Ungültige ID.', code: 400 });
+
+    const existing = db.get().prepare('SELECT id FROM cycle_periods WHERE id = ? AND user_id = ?').get(id, viewer);
+    if (!existing) return res.status(404).json({ error: 'Periode nicht gefunden.', code: 404 });
+
+    db.get().prepare('DELETE FROM cycle_periods WHERE id = ?').run(id);
+    res.status(204).end();
+  } catch (err) {
+    log.error('Error deleting cycle period:', err.message);
+    res.status(500).json({ error: 'Internal error.', code: 500 });
+  }
+});
+
+// ---- Tages-Logs (Upsert je Person/Tag) ----
+
+// GET /cycle/logs?user_id=&from=&to=
+router.get('/cycle/logs', (req, res) => {
+  try {
+    const viewer   = viewerId(req);
+    const personId = req.query.user_id ? parseInt(req.query.user_id, 10) : null;
+    const clause   = visibilityClause('l', viewer, personId);
+    const params   = [...clause.params];
+    let sql = `SELECT l.* FROM cycle_day_logs l WHERE ${clause.sql}`;
+    if (req.query.from) { sql += ' AND l.log_date >= ?'; params.push(String(req.query.from)); }
+    if (req.query.to)   { sql += ' AND l.log_date <= ?'; params.push(String(req.query.to)); }
+    sql += ' ORDER BY l.log_date DESC, l.id DESC';
+    const database = db.get();
+    const rows = database.prepare(sql).all(...params);
+
+
+
+
+    const symptomsByLog = symptomsForLogs(database, rows.map((row) => row.id));
+    res.json({ data: rows.map((row) => ({ ...row, symptoms: symptomsByLog.get(row.id) })) });
+  } catch (err) {
+    log.error('Error listing cycle logs:', err.message);
+    res.status(500).json({ error: 'Internal error.', code: 500 });
+  }
+});
+
+// POST /cycle/logs  (Upsert: ein Eintrag je user_id + log_date)
+router.post('/cycle/logs', (req, res) => {
+  try {
+    const viewer = viewerId(req);
+    const b = req.body || {};
+    const logDate    = v.date(b.log_date, 'log_date', true);
+    const flow       = v.oneOf(b.flow, FLOW_LEVELS, 'flow');
+    const mood       = v.str(b.mood, 'mood', { max: MAX_UNIT, required: false });
+    const note       = v.str(b.note, 'note', { max: v.MAX_TEXT, required: false });
+    const visibility = v.oneOf(b.visibility, VISIBILITIES, 'visibility');
+    const symptoms   = normalizeSymptomEntries(b.symptoms);
+    const basalTemp  = validateBasalTemp(b.basal_temp, b.basal_temp_unit);
+
+    const errors = v.collectErrors([logDate, flow, mood, note, visibility]);
+    if (symptoms.length > MAX_SYMPTOMS_COUNT) errors.push(`symptoms may include at most ${MAX_SYMPTOMS_COUNT} entries.`);
+    if (basalTemp.error) errors.push(basalTemp.error);
+    if (errors.length) return badRequest(res, errors);
+
+    const database = db.get();
+
+
+    const dayLogId = database.transaction(() => {
+      database.prepare(`
+        INSERT INTO cycle_day_logs (user_id, log_date, flow, mood, note, visibility, basal_temp, basal_temp_unit)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id, log_date) DO UPDATE SET
+          flow = excluded.flow, mood = excluded.mood,
+          note = excluded.note, visibility = excluded.visibility,
+          basal_temp = excluded.basal_temp, basal_temp_unit = excluded.basal_temp_unit
+      `).run(viewer, logDate.value, flow.value, mood.value, note.value, visibility.value || 'private', basalTemp.temp, basalTemp.unit);
+      const id = database.prepare('SELECT id FROM cycle_day_logs WHERE user_id = ? AND log_date = ?').get(viewer, logDate.value).id;
+      replaceSymptoms(database, id, symptoms);
+      return id;
+    })();
+
+
+    // taegliche Eintrags-Hinweis (syncLogNudgeReminder) faellt weg, sobald
+
+
+    try {
+      syncCycleRemindersForUser(database, viewer);
+    } catch (err) {
+      log.error('Error syncing cycle reminders after log change:', err.message);
+    }
+
+    const row = database.prepare('SELECT * FROM cycle_day_logs WHERE id = ?').get(dayLogId);
+    res.status(201).json({ data: { ...row, symptoms: symptomsForLog(database, dayLogId) } });
+  } catch (err) {
+    log.error('Error saving cycle log:', err.message);
+    res.status(500).json({ error: 'Internal error.', code: 500 });
+  }
+});
+
+// DELETE /cycle/logs/:id
+router.delete('/cycle/logs/:id', (req, res) => {
+  try {
+    const viewer = viewerId(req);
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Ungültige ID.', code: 400 });
+
+    const existing = db.get().prepare('SELECT id FROM cycle_day_logs WHERE id = ? AND user_id = ?').get(id, viewer);
+    if (!existing) return res.status(404).json({ error: 'Eintrag nicht gefunden.', code: 404 });
+
+    db.get().prepare('DELETE FROM cycle_day_logs WHERE id = ?').run(id);
+    res.status(204).end();
+  } catch (err) {
+    log.error('Error deleting cycle log:', err.message);
+    res.status(500).json({ error: 'Internal error.', code: 500 });
+  }
+});
+
+// ---- Einstellungen (nur eigene) ----
+
+function defaultCycleSettings(userId) {
+  return {
+    user_id: userId, cycle_length_avg: null, period_length_avg: null, luteal_length: 14, track_fertility: 1,
+    pregnancy_mode: 0, pregnancy_due_date: null, default_visibility: 'private',
+    remind_period_days_before: null, remind_log_daily: 0,
+  };
+}
+
+
+router.get('/cycle/settings', (req, res) => {
+  try {
+    const viewer = viewerId(req);
+    const row = db.get().prepare('SELECT * FROM cycle_settings WHERE user_id = ?').get(viewer);
+    res.json({ data: row || defaultCycleSettings(viewer) });
+  } catch (err) {
+    log.error('Error loading cycle settings:', err.message);
+    res.status(500).json({ error: 'Internal error.', code: 500 });
+  }
+});
+
+// PUT /cycle/settings
+router.put('/cycle/settings', (req, res) => {
+  try {
+    const viewer = viewerId(req);
+    const b = req.body || {};
+
+    const intInRange = (val, field, lo, hi) => {
+      if (val === undefined || val === null || val === '') return { value: null, error: null };
+      const n = Number(val);
+      if (!Number.isInteger(n) || n < lo || n > hi) return { value: null, error: `${field} must be an integer between ${lo} and ${hi}.` };
+      return { value: n, error: null };
+    };
+    const cycleLen  = intInRange(b.cycle_length_avg, 'cycle_length_avg', 15, 60);
+    const periodLen = intInRange(b.period_length_avg, 'period_length_avg', 1, 15);
+    const luteal    = intInRange(b.luteal_length, 'luteal_length', 8, 18);
+    const track     = toBit(b.track_fertility);
+    const pregnancy = toBit(b.pregnancy_mode);
+    const dueDate   = v.date(b.pregnancy_due_date, 'pregnancy_due_date');
+    const defVis    = v.oneOf(b.default_visibility, VISIBILITIES, 'default_visibility');
+
+
+    // typische Lutealphase waere keine Vorwarnung mehr, sondern Dauerlaerm.
+    const remindDaysBefore = intInRange(b.remind_period_days_before, 'remind_period_days_before', 0, 14);
+    const remindLogDaily   = toBit(b.remind_log_daily);
+
+    const errors = v.collectErrors([cycleLen, periodLen, luteal, dueDate, defVis, remindDaysBefore]);
+    if (b.track_fertility !== undefined && track === undefined) errors.push('track_fertility must be a boolean.');
+    if (b.pregnancy_mode !== undefined && pregnancy === undefined) errors.push('pregnancy_mode must be a boolean.');
+    if (b.remind_log_daily !== undefined && remindLogDaily === undefined) errors.push('remind_log_daily must be a boolean.');
+    if (errors.length) return badRequest(res, errors);
+
+    db.get().prepare(`
+      INSERT INTO cycle_settings (user_id, cycle_length_avg, period_length_avg, luteal_length, track_fertility, pregnancy_mode, pregnancy_due_date, default_visibility, remind_period_days_before, remind_log_daily)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id) DO UPDATE SET
+        cycle_length_avg = excluded.cycle_length_avg,
+        period_length_avg = excluded.period_length_avg,
+        luteal_length = excluded.luteal_length,
+        track_fertility = excluded.track_fertility,
+        pregnancy_mode = excluded.pregnancy_mode,
+        pregnancy_due_date = excluded.pregnancy_due_date,
+        default_visibility = excluded.default_visibility,
+        remind_period_days_before = excluded.remind_period_days_before,
+        remind_log_daily = excluded.remind_log_daily
+    `).run(viewer, cycleLen.value, periodLen.value, luteal.value === null ? 14 : luteal.value,
+           track === undefined ? 1 : track,
+           pregnancy === undefined ? 0 : pregnancy,
+           dueDate.value,
+           defVis.value || 'private',
+           remindDaysBefore.value,
+           remindLogDaily === undefined ? 0 : remindLogDaily);
+
+    // Sofort wirksam statt erst beim naechsten periodischen Lauf - gleiche
+    // Erwartung wie ueberall sonst (server/routes/schedule-preferences.js).
+    try {
+      syncCycleRemindersForUser(db.get(), viewer);
+    } catch (err) {
+      log.error('Error syncing cycle reminders after settings change:', err.message);
+    }
+
+    res.json({ data: db.get().prepare('SELECT * FROM cycle_settings WHERE user_id = ?').get(viewer) });
+  } catch (err) {
+    log.error('Error saving cycle settings:', err.message);
+    res.status(500).json({ error: 'Internal error.', code: 500 });
+  }
+});
+
+
+
+
+// Logs konsistent (entweder beide oder keine).
+router.patch('/cycle/visibility', (req, res) => {
+  try {
+    const viewer = viewerId(req);
+    const vis = v.oneOf(req.body?.visibility, VISIBILITIES, 'visibility');
+    if (vis.error || !vis.value) return badRequest(res, [vis.error || 'visibility is required.']);
+
+    const database = db.get();
+    const applyBulk = database.transaction((value) => {
+      const p = database.prepare('UPDATE cycle_periods  SET visibility = ? WHERE user_id = ?').run(value, viewer);
+      const l = database.prepare('UPDATE cycle_day_logs SET visibility = ? WHERE user_id = ?').run(value, viewer);
+      return { periods: p.changes, logs: l.changes };
+    });
+    res.json({ data: applyBulk(vis.value) });
+  } catch (err) {
+    log.error('Error bulk-updating cycle visibility:', err.message);
+    res.status(500).json({ error: 'Internal error.', code: 500 });
+  }
+});
+
+// GET /export/cycle?user_id=&from=&to=  (Perioden-Historie als CSV, chronologisch)
+router.get('/export/cycle', (req, res) => {
+  try {
+    const viewer   = viewerId(req);
+    const personId = req.query.user_id ? parseInt(req.query.user_id, 10) : null;
+    const clause   = visibilityClause('p', viewer, personId);
+    const { from, to } = exportRange(req);
+    const params = [...clause.params];
+    let sql = `SELECT p.* FROM cycle_periods p WHERE ${clause.sql}`;
+    if (from) { sql += ' AND p.start_date >= ?'; params.push(from); }
+    if (to)   { sql += ' AND p.start_date <= ?'; params.push(to); }
+    sql += ' ORDER BY p.start_date ASC, p.id ASC';
+
+    const rows = db.get().prepare(sql).all(...params);
+    sendCsv(res, exportFilename('cycle', from, to), cycleToCsv(rows));
+  } catch (err) {
+    log.error('Error exporting cycle:', err.message);
+    res.status(500).json({ error: 'Internal error.', code: 500 });
+  }
+});
+
+export default router;

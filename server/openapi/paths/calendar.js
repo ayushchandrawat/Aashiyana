@@ -1,0 +1,303 @@
+import { op, jsonBody, idParam, stringPathParam } from '../helpers.js';
+
+const apiError = (description) => ({
+  description,
+  content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+});
+
+export function calendarPaths() {
+  return {
+    '/api/v1/calendar': {
+      get: op({
+        summary: 'List calendar events',
+        tag: 'Calendar',
+        description: 'Events generated from the birthdays module carry `birthday_name` and `birthday_date`. Their `title` is stored in the household data language (see `language` in `/preferences`), so API consumers, the ICS feed and calendar sync all read the same wording; clients that display in a different language can re-render the title from `birthday_name`.',
+        responses: {
+          200: {
+            description: 'Calendar events',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/CalendarEventsResponse' } } },
+          },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          500: { $ref: '#/components/responses/InternalServerError' },
+        },
+      }),
+      post: op({
+        summary: 'Create calendar event',
+        tag: 'Calendar',
+        stateChanging: true,
+        description: 'Supports optional document-storage attachments via `attachment_name`, `attachment_mime`, `attachment_size`, and `attachment_data` (base64 data URL). New attachments are linked through `attachment_document_id`; legacy events may still return `attachment_data`. Set `target_caldav_account_id` and `target_caldav_calendar_url` to push the event to a CalDAV calendar (omit or null for a local-only event).',
+        requestBody: jsonBody(null),
+        responses: {
+          201: {
+            description: 'Calendar event created',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/CalendarEventResponse' } } },
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          500: { $ref: '#/components/responses/InternalServerError' },
+        },
+      }),
+    },
+    '/api/v1/calendar/upcoming': { get: op({ summary: 'List upcoming events', tag: 'Calendar' }) },
+    '/api/v1/calendar/search': { get: op({ summary: 'Search events by title, location, or notes', tag: 'Calendar', description: 'Diacritic-insensitive full-text search across all family-visible calendar events (`q`, min 2 chars). Returns `{ data: Event[], total }` sorted chronologically; recurring matches resolve to their next occurrence. Backs the calendar toolbar search (#471).' }) },
+    '/api/v1/calendar/holidays': { get: op({ summary: 'List public & school holidays in a date range', tag: 'Calendar', description: 'Reads cached OpenHolidays entries that overlap `from`/`to` (both `YYYY-MM-DD`, required). Returns `{ data: [{ id, type (`public`|`school`), start_date, end_date, name, color }] }`. Empty when no holiday country is configured.' }) },
+    '/api/v1/calendar/google/auth': { get: op({ summary: 'Start Google Calendar OAuth', tag: 'Calendar', admin: true }) },
+    '/api/v1/calendar/google/callback': { get: op({ summary: 'Google Calendar OAuth callback', tag: 'Calendar' }) },
+    '/api/v1/calendar/google/sync': { post: op({ summary: 'Run Google Calendar sync', tag: 'Calendar', admin: true, stateChanging: true }) },
+    '/api/v1/calendar/google/status': { get: op({ summary: 'Get Google Calendar status', tag: 'Calendar' }) },
+    '/api/v1/calendar/google/calendars': {
+      get: op({ summary: 'List available Google calendars', tag: 'Calendar', admin: true }),
+      patch: op({ summary: 'Enable/disable a Google calendar to sync', tag: 'Calendar', admin: true, stateChanging: true }),
+    },
+    '/api/v1/calendar/google/disconnect': { delete: op({ summary: 'Disconnect Google Calendar', tag: 'Calendar', admin: true, stateChanging: true }) },
+    '/api/v1/calendar/google/mirrored-events': { delete: op({ summary: 'Delete locally mirrored Google events', tag: 'Calendar', admin: true, stateChanging: true }) },
+    '/api/v1/calendar/google/readonly': { put: op({ summary: 'Set Google Calendar read-only mode', tag: 'Calendar', admin: true, stateChanging: true }) },
+    '/api/v1/calendar/apple/status': { get: op({ summary: 'Get Apple Calendar status', tag: 'Calendar' }) },
+    '/api/v1/calendar/apple/sync': { post: op({ summary: 'Run Apple Calendar sync', tag: 'Calendar', admin: true, stateChanging: true }) },
+    '/api/v1/calendar/apple/connect': { post: op({ summary: 'Connect Apple Calendar', tag: 'Calendar', admin: true, stateChanging: true, requestBody: jsonBody(null) }) },
+    '/api/v1/calendar/apple/disconnect': { delete: op({ summary: 'Disconnect Apple Calendar', tag: 'Calendar', admin: true, stateChanging: true }) },
+    '/api/v1/calendar/apple/mirrored-events': { delete: op({ summary: 'Delete locally mirrored Apple events', tag: 'Calendar', admin: true, stateChanging: true }) },
+    '/api/v1/calendar/subscriptions': {
+      get: op({ summary: 'List ICS subscriptions', tag: 'Calendar' }),
+      post: op({ summary: 'Create ICS subscription', tag: 'Calendar', stateChanging: true, requestBody: jsonBody(null) }),
+    },
+    '/api/v1/calendar/subscriptions/{id}': {
+      patch: op({ summary: 'Update ICS subscription', tag: 'Calendar', params: [idParam()], stateChanging: true, requestBody: jsonBody(null) }),
+      delete: op({ summary: 'Delete ICS subscription', tag: 'Calendar', params: [idParam()], stateChanging: true }),
+    },
+    '/api/v1/calendar/subscriptions/{id}/sync': {
+      post: op({ summary: 'Sync ICS subscription', tag: 'Calendar', params: [idParam()], stateChanging: true }),
+    },
+    '/api/v1/calendar/import': {
+      post: op({ summary: 'Import events from an ICS file or shared calendar feed as editable local events', tag: 'Calendar', stateChanging: true, requestBody: jsonBody(null) }),
+    },
+    '/api/v1/calendar/feed': {
+      get: op({ summary: 'Get personal ICS export feed status', tag: 'Calendar' }),
+      put: op({ summary: 'Set personal ICS export feed options (showAssignees)', tag: 'Calendar', stateChanging: true, requestBody: jsonBody(null) }),
+      delete: op({ summary: 'Disable personal ICS export feed', tag: 'Calendar', stateChanging: true }),
+    },
+    '/api/v1/calendar/feed/regenerate': {
+      post: op({ summary: 'Regenerate personal ICS export feed token', tag: 'Calendar', stateChanging: true }),
+    },
+    '/api/v1/calendar/sync-targets': {
+      get: op({
+        summary: 'List selectable sync targets for the event editor',
+        tag: 'Calendar',
+        description: 'Available to every authenticated user (#618). Returns `{ data: { google: [{ id, summary, defaultAssigneeUserId }], caldav: [{ accountId, accountName, calendarUrl, calendarName, defaultAssigneeUserId }], outlook: [{ accountId, accountName, calendarId, calendarName }] } }`, pre-filtered to enabled (and, for Google, writable) calendars. `defaultAssigneeUserId` is the default assignee set on that calendar (#459), or null; the event editor reads it backwards to pick the calendar of the person a new event is assigned to (#1060). Carries no credentials, server URLs, or usernames - account management stays admin-only. A provider that cannot be reached yields an empty list instead of failing the request.',
+      }),
+    },
+    '/api/v1/calendar/caldav/accounts': {
+      get: op({ summary: 'List CalDAV accounts', tag: 'Calendar', admin: true }),
+      post: op({ summary: 'Create CalDAV account', tag: 'Calendar', admin: true, stateChanging: true, requestBody: jsonBody(null) }),
+    },
+    '/api/v1/calendar/caldav/accounts/{id}': {
+      put: op({ summary: 'Update CalDAV account', tag: 'Calendar', admin: true, params: [idParam()], stateChanging: true, requestBody: jsonBody(null) }),
+      delete: op({ summary: 'Delete CalDAV account', tag: 'Calendar', admin: true, params: [idParam()], stateChanging: true }),
+    },
+    '/api/v1/calendar/caldav/accounts/{id}/calendars': {
+      get: op({ summary: 'List calendars for a CalDAV account', tag: 'Calendar', admin: true, params: [idParam()] }),
+      patch: op({ summary: 'Enable or disable a CalDAV calendar', tag: 'Calendar', admin: true, params: [idParam()], stateChanging: true, requestBody: jsonBody(null) }),
+    },
+    '/api/v1/calendar/caldav/sync': {
+      post: op({ summary: 'Run CalDAV event sync', tag: 'Calendar', admin: true, stateChanging: true }),
+    },
+    '/api/v1/calendar/caldav/status': {
+      get: op({ summary: 'Get CalDAV event sync status', tag: 'Calendar' }),
+    },
+    '/api/v1/calendar/caldav/accounts/{id}/reminder-lists': {
+      get: op({ summary: 'List reminder lists for a CalDAV account', tag: 'Calendar', admin: true, params: [idParam()] }),
+      patch: op({ summary: 'Enable/disable a CalDAV reminder list and target module', tag: 'Calendar', admin: true, params: [idParam()], stateChanging: true, requestBody: jsonBody(null) }),
+    },
+    '/api/v1/calendar/caldav/reminders/sync': {
+      post: op({ summary: 'Run CalDAV reminders sync', tag: 'Calendar', admin: true, stateChanging: true }),
+    },
+    '/api/v1/calendar/caldav/reminders/status': {
+      get: op({ summary: 'Get CalDAV reminders sync status', tag: 'Calendar' }),
+    },
+    '/api/v1/calendar/outlook/auth': { get: op({ summary: 'Start Outlook (Microsoft) OAuth', tag: 'Calendar', admin: true }) },
+    '/api/v1/calendar/outlook/callback': { get: op({ summary: 'Outlook OAuth callback', tag: 'Calendar' }) },
+    '/api/v1/calendar/outlook/accounts': {
+      get: op({ summary: 'List connected Outlook accounts', tag: 'Calendar', admin: true }),
+    },
+    '/api/v1/calendar/outlook/accounts/{id}': {
+      put: op({
+        summary: 'Update Outlook account (name, auto-sync calendar, owner)',
+        tag: 'Calendar',
+        admin: true,
+        params: [idParam()],
+        stateChanging: true,
+        requestBody: jsonBody(null),
+        responses: {
+          200: { description: 'Outlook account updated' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          409: {
+            description: 'Auto-sync activation conflicts with recurring series that have linked occurrence overrides',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/OutlookAutoSyncOverrideConflict' } } },
+          },
+          500: { $ref: '#/components/responses/InternalServerError' },
+        },
+      }),
+      delete: op({ summary: 'Disconnect and delete Outlook account', tag: 'Calendar', admin: true, params: [idParam()], stateChanging: true }),
+    },
+    '/api/v1/calendar/outlook/accounts/{id}/calendars': {
+      get: op({ summary: 'List calendars for an Outlook account', tag: 'Calendar', admin: true, params: [idParam()] }),
+      patch: op({ summary: 'Enable or disable an Outlook calendar as push target', tag: 'Calendar', admin: true, params: [idParam()], stateChanging: true, requestBody: jsonBody(null) }),
+    },
+    '/api/v1/calendar/outlook/sync': {
+      post: op({ summary: 'Run Outlook one-way push', tag: 'Calendar', admin: true, stateChanging: true }),
+    },
+    '/api/v1/calendar/outlook/status': {
+      get: op({ summary: 'Get Outlook push status', tag: 'Calendar' }),
+    },
+    '/api/v1/calendar/{seriesId}/occurrences/{recurrenceId}': {
+      put: op({
+        summary: 'Update one recurring calendar occurrence',
+        tag: 'Calendar',
+        params: [
+          idParam('seriesId', 'Recurring series ID'),
+          stringPathParam('recurrenceId', 'Original occurrence date in YYYY-MM-DD format'),
+        ],
+        stateChanging: true,
+        description: 'Creates or updates a linked replacement for one original slot of an eligible local-only series. Scalar fields, assignments, attachments, and `reminder_offsets` are compared with the expanded series defaults. Saving no actual difference restores the normal series occurrence only when a linked replacement existed for that slot; a slot excluded by a deletion or detached replacement remains excluded.',
+        requestBody: jsonBody('#/components/schemas/CalendarOccurrenceOnlyMutation'),
+        responses: {
+          200: {
+            description: 'Resolved calendar occurrence',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/CalendarOccurrenceResponse' } } },
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
+          404: apiError('Calendar series not found'),
+          500: { $ref: '#/components/responses/InternalServerError' },
+        },
+      }),
+      delete: op({
+        summary: 'Delete one recurring calendar occurrence',
+        tag: 'Calendar',
+        params: [
+          idParam('seriesId', 'Recurring series ID'),
+          stringPathParam('recurrenceId', 'Original occurrence date in YYYY-MM-DD format'),
+        ],
+        stateChanging: true,
+        description: 'Deletes a linked replacement when present and keeps an EXDATE on the master so the original slot remains suppressed.',
+        responses: {
+          204: { description: 'Occurrence deleted' },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
+          404: apiError('Calendar series not found'),
+          500: { $ref: '#/components/responses/InternalServerError' },
+        },
+      }),
+    },
+    '/api/v1/calendar/{seriesId}/occurrences/{recurrenceId}/following': {
+      put: op({
+        summary: 'Split a recurring calendar series',
+        tag: 'Calendar',
+        params: [
+          idParam('seriesId', 'Recurring series ID'),
+          stringPathParam('recurrenceId', 'Original occurrence date in YYYY-MM-DD format'),
+        ],
+        stateChanging: true,
+        description: 'Truncates the original series before the selected original slot, creates a successor series, transfers every later exclusion except the selected slot, and reparents later linked replacements atomically.',
+        requestBody: jsonBody('#/components/schemas/CalendarOccurrenceFollowingMutation'),
+        responses: {
+          200: {
+            description: 'First occurrence updated as the whole series',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/CalendarOccurrenceResponse' } } },
+          },
+          201: {
+            description: 'Successor calendar series created',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/CalendarOccurrenceResponse' } } },
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
+          404: apiError('Calendar series not found'),
+          409: {
+            description: 'Linked occurrence replacements require exact-count orphan confirmation',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/CalendarOverrideOrphanConflict' } } },
+          },
+          500: { $ref: '#/components/responses/InternalServerError' },
+        },
+      }),
+      delete: op({
+        summary: 'Delete this and following recurring occurrences',
+        tag: 'Calendar',
+        params: [
+          idParam('seriesId', 'Recurring series ID'),
+          stringPathParam('recurrenceId', 'Original occurrence date in YYYY-MM-DD format'),
+        ],
+        stateChanging: true,
+        description: 'Truncates immediately before the selected original slot, removes later linked replacements, and preserves later exclusions. Selecting the first slot deletes the whole series.',
+        responses: {
+          204: { description: 'Selected and following occurrences deleted' },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          403: { $ref: '#/components/responses/Forbidden' },
+          404: apiError('Calendar series not found'),
+          500: { $ref: '#/components/responses/InternalServerError' },
+        },
+      }),
+    },
+    '/api/v1/calendar/{id}': {
+      get: op({
+        summary: 'Get calendar event',
+        tag: 'Calendar',
+        params: [idParam()],
+        responses: {
+          200: {
+            description: 'Calendar event',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/CalendarEventResponse' } } },
+          },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          404: { description: 'Calendar event not found' },
+          500: { $ref: '#/components/responses/InternalServerError' },
+        },
+      }),
+      put: op({
+        summary: 'Update calendar event',
+        tag: 'Calendar',
+        params: [idParam()],
+        stateChanging: true,
+        description: 'Supports document-storage attachments. Omit attachment fields to preserve the current attachment, send new `attachment_data` to create and link a document, or set `remove_attachment` to true to unlink it without deleting the library document. Legacy events may still return `attachment_data`. A recurrence-rule or anchor change that would orphan linked replacements returns 409 with `calendar_override_orphans` and the exact `orphaned_override_count`; retry with the same value in `confirmed_orphan_count` to preserve those replacements as standalone events. The same confirmation is required before assigning an outbound target to a series with linked replacements. Changing a mirrored field (title, description, location, color, all-day, start/end, recurrence) of an event synced to Google pushes the change there, and switching `target_google_calendar_id` moves it to the other Google calendar. The remote call runs after the response and is retried by the next sync run if it fails.',
+        requestBody: jsonBody(null),
+        responses: {
+          200: {
+            description: 'Calendar event updated',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/CalendarEventResponse' } } },
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          404: { description: 'Calendar event not found' },
+          409: {
+            description: 'Linked occurrence replacements require exact-count orphan confirmation',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/CalendarOverrideOrphanConflict' } } },
+          },
+          500: { $ref: '#/components/responses/InternalServerError' },
+        },
+      }),
+      delete: op({
+        summary: 'Delete calendar event',
+        tag: 'Calendar',
+        params: [idParam()],
+        stateChanging: true,
+        description: 'An event mirrored to Google Calendar is deleted there as well. The remote call runs after the response; if it fails, the next sync run retries it.',
+      }),
+    },
+    '/api/v1/calendar/{id}/reset': {
+      post: op({ summary: 'Reset external calendar event to source state', tag: 'Calendar', params: [idParam()], stateChanging: true }),
+    },
+    '/api/v1/calendar/{id}/exceptions': {
+      post: op({ summary: 'Exclude a single occurrence of a recurring event (EXDATE)', tag: 'Calendar', params: [idParam()], stateChanging: true, requestBody: jsonBody(null) }),
+    },
+    '/api/v1/calendar/external-calendars': {
+      patch: op({ summary: 'Set the default assignee of an external calendar', tag: 'Calendar', admin: true, stateChanging: true, requestBody: jsonBody(null), description: 'Body: { source, external_id, default_assignee_user_id }. Events arriving from that calendar are assigned to this member. Without it the first batch of a newly enabled calendar came in unassigned and had to be filled in by hand (#730). The sync only refreshes name and colour on conflict, so the assignment set here stays.' }),
+    },
+    '/api/v1/calendar/external-calendars/default-assignee-backfill': {
+      get: op({ summary: 'Count imported events a default-assignee backfill would fill', tag: 'Calendar', admin: true, description: 'Response: { data: { count, token } }. Counts already imported events from calendars of every account that carry a default assignee and are not assigned to anyone yet (#1154). `token` fingerprints exactly that candidate set - which events, and which person each would get - and is meant to be sent back as `expected_token` (#1171).' }),
+      post: op({ summary: 'Apply default assignees to already imported events', tag: 'Calendar', admin: true, stateChanging: true, requestBody: jsonBody(null), description: 'Body: { expected_count, expected_token? } - the count and the token the confirmation was based on; when the candidate set changed since, the call answers 409 with { data: { count, token } } and changes nothing. With `expected_token` a change of the same size is caught as well (an event assigned by hand while a new import takes its place, or a calendar switched to another person); without it only the count is compared (#1171). Only the confirmed candidate list is processed, each event re-checked when written, so `assigned` can be lower than `expected_count` if events were assigned in the meantime. Response: { data: { assigned } }. Runs in batches so a long history does not block other requests; inherited reminders whose time has passed are marked dismissed. A default assignee only reaches events imported after it was set. This one-off action assigns it to the events already imported from that calendar, across all accounts, but only where an event is not assigned to anyone yet: an assignment made by hand is left alone (#1154). It cannot tell a never-assigned event from one whose assignment was removed by hand. ICS subscriptions are not included.' }),
+    },
+  };
+}

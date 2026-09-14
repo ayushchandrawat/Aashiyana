@@ -1,0 +1,110 @@
+/* ------------------------------------------------------------------ */
+/* Symbolauswahl (#873)                                                */
+/*                                                                     */
+/* Guards.                                                             */
+/* ------------------------------------------------------------------ */
+
+.icon-picker {
+  border: none;
+  padding: 0;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xl);
+  width: calc(100vw - var(--space-8));
+  max-width: 420px;
+  max-height: min(560px, calc(100vh - var(--space-8)));
+  overflow: hidden;
+}
+
+.icon-picker::backdrop {
+  background: var(--color-overlay);
+}
+
+.icon-picker__body {
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+  min-height: 0;
+}
+
+.icon-picker__header {
+  padding: var(--space-4) var(--space-4) var(--space-2);
+}
+
+.icon-picker__title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.icon-picker__search {
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.icon-picker__results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--space-4) var(--space-3);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: var(--space-2);
+}
+
+.icon-picker__tile {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast),
+              border-color var(--transition-fast);
+}
+
+.icon-picker__tile:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.icon-picker__tile:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.icon-picker__tile--current,
+.icon-picker__tile--current:hover {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-ink-on-vivid);
+}
+
+.icon-picker__tile i,
+.icon-picker__tile svg {
+  width: 22px;
+  height: 22px;
+}
+
+.icon-picker__empty {
+  margin: 0;
+  padding: var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.icon-picker__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.icon-picker__footer #icon-picker-clear {
+  margin-right: auto;
+}

@@ -1,0 +1,986 @@
+
+:root {
+  --_neutral-50:  #FBFAF7;
+  --neutral-50:   var(--_neutral-50);
+  --_neutral-100: #F5F3ED;   /* Grouped Background — warmes Papier, L=0.8962 */
+  --neutral-100:  var(--_neutral-100);
+
+  --neutral-150:  var(--_neutral-150);
+  --_neutral-200: #E4E0D7;
+  --neutral-200:  var(--_neutral-200);
+  --_neutral-250: #D9D4C9;
+  --neutral-250:  var(--_neutral-250);
+  --_neutral-300: #CFC9BC;
+  --neutral-300:  var(--_neutral-300);
+  --_neutral-400: #AEAAA0;
+  --neutral-400:  var(--_neutral-400);
+  --_neutral-500: #8C8880;
+  --neutral-500:  var(--_neutral-500);
+
+  --neutral-600:  var(--_neutral-600);
+  --_neutral-700: #4A4741;
+  --neutral-700:  var(--_neutral-700);
+  --_neutral-800: #2D2A25;
+  --neutral-800:  var(--_neutral-800);
+
+  --neutral-900:  var(--_neutral-900);
+  --_neutral-950: #0E0D0B;
+  --neutral-950:  var(--_neutral-950);
+
+  --color-bg:             var(--neutral-100);
+  --_color-surface:       #FFFFFF;
+  --color-surface:        var(--_color-surface);
+  --color-surface-2:      var(--neutral-50);
+  --_color-surface-3:     var(--_neutral-150);
+  --color-surface-3:      var(--_color-surface-3);
+  --color-border:         var(--neutral-200);
+  --color-border-subtle:  var(--neutral-150);
+
+  --color-text-primary:   var(--neutral-900);
+
+  --_color-text-tertiary: #6B675F;
+
+
+  --color-text-disabled:  var(--neutral-300);
+  --color-text-placeholder: var(--color-text-tertiary);
+
+
+
+  --_color-ink-on-vivid: #ffffff;
+  --color-ink-on-vivid:  var(--_color-ink-on-vivid);
+
+  --_color-surface-elevated: var(--_neutral-50);
+  --color-surface-elevated:  var(--_color-surface-elevated);
+  --_color-surface-hover:    var(--_neutral-150);
+  --color-surface-hover:     var(--_color-surface-hover);
+  --_color-surface-elevated-hover: var(--_neutral-150);
+  --color-surface-elevated-hover:  var(--_color-surface-elevated-hover);
+  --_color-surface-work:      #FFFFFF;
+  --color-surface-work:       var(--_color-surface-work);
+  --_color-surface-raised:    #FBFBFD;
+  --color-surface-raised:     var(--_color-surface-raised);
+  --_color-surface-glass:     rgba(250, 250, 252, 0.62);
+
+  --color-fill-well:          var(--color-surface-3);
+
+
+
+  --_color-accent:            #6C3AED;
+  --color-accent:             var(--_color-accent);
+  --_color-accent-hover:      #5B2FD4;
+  --color-accent-hover:       var(--_color-accent-hover);
+
+  --_color-accent-secondary:  #8B5CF6;
+
+  --_color-accent-light:      #F3EFFE;
+  --color-accent-light:       var(--_color-accent-light);   /* Violett-Tint 50 — Fokus-Glow, Heute-Chip */
+  --_color-accent-subtle:     #E7DDFD;
+  --color-accent-subtle:      var(--_color-accent-subtle);  /* Violett-Tint 100 */
+  --_color-btn-primary:       #6C3AED;
+
+  --_color-btn-primary-hover: #5B2FD4;
+  --color-btn-primary-hover:  var(--_color-btn-primary-hover);
+
+  /* --------------------------------------------------------
+   * 3. Farben - Semantisch (Apple-Vokabular, AA-vertieft)
+   * -------------------------------------------------------- */
+  --_color-success:       #1E7B35;
+
+  --_color-success-hover: #186A2C;
+  --color-success-hover:  var(--_color-success-hover);
+  --_color-success-light: #DFF6E4;
+  --color-success-light:  var(--_color-success-light);
+  --_color-warning:       #A85D00;
+
+  --_color-warning-hover: #8F4F00;
+  --color-warning-hover:  var(--_color-warning-hover);
+  --_color-warning-light: #FFF0D9;
+  --color-warning-light:  var(--_color-warning-light);
+  --_color-danger:        #D70015;
+
+  --_color-danger-hover:  #B80012;
+  --color-danger-hover:   var(--_color-danger-hover);
+  --_color-danger-light:  #FFE3E3;
+  --color-danger-light:   var(--_color-danger-light);
+  --_color-info:          #0663C7;
+
+  --_color-info-hover:    #0552A6;
+  --color-info-hover:     var(--_color-info-hover);
+  --_color-info-light:    #E0EFFF;
+  --color-info-light:     var(--_color-info-light);
+
+  --_color-success-ink:   #186A2C;
+  --color-success-ink:    var(--_color-success-ink);
+  --_color-warning-ink:   #8F4F00;
+  --color-warning-ink:    var(--_color-warning-ink);
+  --_color-danger-ink:    #B80012;
+  --color-danger-ink:     var(--_color-danger-ink);
+  --_color-info-ink:      #0552A6;
+  --color-info-ink:       var(--_color-info-ink);
+
+  --_toast-success-text: var(--color-text-on-accent);
+  --toast-success-text:  var(--_toast-success-text);
+  --_toast-warning-text: var(--color-text-on-accent);
+  --toast-warning-text:  var(--_toast-warning-text);
+  --_toast-danger-text:  var(--color-text-on-accent);
+  --toast-danger-text:   var(--_toast-danger-text);
+
+  --_shell-danger-ink:   #FF9A91;
+  --shell-danger-ink:    var(--_shell-danger-ink);
+
+  --_chart-series-1: #4F4DC9;   /* Indigo   */
+  --_chart-series-2: #297989;   /* Petrol   */
+  --_chart-series-3: #C2410C;   /* Orange   */
+  --_chart-series-4: #0663C7;   /* Blau     */
+  --_chart-series-5: #A16207;   /* Ocker    */
+  --_chart-series-6: #BE185D;   /* Magenta  */
+
+  --chart-series-1: var(--_chart-series-1);
+  --chart-series-2: var(--_chart-series-2);
+  --chart-series-3: var(--_chart-series-3);
+  --chart-series-4: var(--_chart-series-4);
+  --chart-series-5: var(--_chart-series-5);
+  --chart-series-6: var(--_chart-series-6);
+  --chart-series-7: var(--_chart-series-7);
+
+  --_family-overview: #6C3AED;  /* Violett - Uebersicht (= --color-accent, bewusster Share) */
+  --_family-time:     #00668F;  /* Azur - Kalender, Erinnerungen; 6.37:1 auf weiss,
+                                 * 5.74:1 auf --color-bg.
+                                 * ZOG UM, ALS DER AKZENT VIOLETT WURDE (2026-08-10).
+                                 * Hier stand Violett-700 #6D28D9 - neben dem Indigo-Akzent
+                                 * eine gebilligte 20-Grad-Trennung, neben dem Violett-Akzent
+                                 * #6C3AED aber derselbe Ton (Kontrast der beiden zueinander:
+                                 * 1.08). Der Kalender haette ausgesehen wie "das Modul der
+                                 * Marke", genau da, wo die Eine-Stimme-Regel Stimme und Ton
+                                 * gerade trennt. Azur 197 Grad ist die einzige Luecke, die
+                                 * zu BEIDEN Nachbarn >=20 Grad haelt (money 175, records 218)
+                                 * und dazu in der Saettigung klar von beiden absteht. */
+  --_family-work:     #157F3D;  /* Gruen - Aufgaben, Haushaltshilfe, Belohnungen (der
+                                 * Verbund Erledigen -> Punkte -> Belohnung). 1 G-Stufe
+                                 * unter Bestand #15803D: der kuehle Grouped-Grund
+                                 * drueckte das Bestandsgruen auf 4.49:1 (AA-Riss);
+                                 *
+  --_family-kitchen:  #C2410C;  /* Orange-700 - Mahlzeiten, Rezepte, Einkaufen, Vorrat */
+  --_family-money:    #0F766E;  /* Teal-700 - Budget, Kostenteilung */
+  --_family-people:   #CE2A63;  /* Rose - Kontakte, Geburtstage; 5.01:1 auf weiss */
+  --_family-health:   #9E1E88;  /* Beeren-Fuchsia (310 Grad) - Gesundheit; 7.0:1 auf
+                                 * weiss (AAA), kein Rot (Trennung von Danger) */
+  --_family-records:  #42587E;  /* Stahlblau - Dokumente, Notizen, Inventar
+                                 * (Inventar kam 2026-08-11 dazu, Begruendung
+                                 * unten an --module-inventory) */
+  --_family-neutral:  #677079;  /* Grau - Einstellungen: Konfiguration gehoert keinem
+                                 * Lebensbereich; 5.03:1 auf weiss */
+
+  --module-dashboard: var(--_family-overview);
+  --module-tasks:     var(--_family-work);
+  --module-calendar:  var(--_family-time);
+  --module-schedule:  var(--_family-time);
+  --module-meals:     var(--_family-kitchen);
+  --module-recipes:   var(--_family-kitchen);
+  --module-shopping:  var(--_family-kitchen);
+  --module-pantry:    var(--_family-kitchen);
+  --module-kitchen:   var(--_family-kitchen);
+  --module-notes:     var(--_family-records);
+  --module-contacts:  var(--_family-people);
+  --module-birthdays: var(--_family-people);
+  --module-budget:    var(--_family-money);
+  --module-split-expenses: var(--_family-money);
+  --module-documents: var(--_family-records);
+  --module-housekeeping: var(--_family-work);
+  --module-waste:     var(--_family-work);
+  --module-health:    var(--_family-health);
+  --module-inventory: var(--_family-records);
+
+
+
+  --module-settings:  var(--_family-neutral);
+  --module-reminders: var(--_family-time);
+  --module-rewards:   var(--_family-work);
+
+
+  /* --------------------------------------------------------
+   * 5. Farben - Mahlzeit-Typen
+   * -------------------------------------------------------- */
+  --_meal-breakfast:       #A85D00;
+  --meal-breakfast:        var(--_meal-breakfast);       /* Morgensonne-Amber (= --color-warning, bewusster Share) */
+  --_meal-breakfast-light: #FFF0D9;
+  --meal-breakfast-light:  var(--_meal-breakfast-light);
+  --_meal-lunch:           #1F7A3A;
+  --meal-lunch:            var(--_meal-lunch);
+  --_meal-lunch-light:     #DFF6E4;
+  --meal-lunch-light:      var(--_meal-lunch-light);
+  --_meal-dinner:          #6C3AED;
+  --meal-dinner:           var(--_meal-dinner);          /* Violett — Abend (= --color-accent) */
+  --_meal-dinner-light:    #F3EFFE;
+  --meal-dinner-light:     var(--_meal-dinner-light);
+  --_meal-snack:           #C2410C;
+  --meal-snack:            var(--_meal-snack);           /* = --module-meals — Snack ist Sub-Domain */
+  --_meal-snack-light:     #FFECE3;
+  --meal-snack-light:      var(--_meal-snack-light);
+
+  --_meal-breakfast-ink:   #8F4F00;
+  --meal-breakfast-ink:    var(--_meal-breakfast-ink);
+  --_meal-lunch-ink:       #1A6831;
+  --meal-lunch-ink:        var(--_meal-lunch-ink);
+  --_meal-dinner-ink:      #5B2FD4;
+  --meal-dinner-ink:       var(--_meal-dinner-ink);
+  --_meal-snack-ink:       #A5370A;
+  --meal-snack-ink:        var(--_meal-snack-ink);
+
+
+  --_source-mealie:        #0F766E;
+  --source-mealie:         var(--_source-mealie);
+  --_source-mealie-light:  #D9F5EE;
+  --source-mealie-light:   var(--_source-mealie-light);
+  --_source-tandoor:        #1D4ED8;
+  --source-tandoor:         var(--_source-tandoor);
+  --_source-tandoor-light:  #DBEAFE;
+  --source-tandoor-light:   var(--_source-tandoor-light);
+
+  --_weather-clear:  #B45309;   /* Bernstein  - Sonne, klarer Tag; 4,53:1 */
+  --weather-clear:   var(--_weather-clear);
+  --_weather-night:  #4C4FBF;   /* Indigo     - klare Nacht, Mond;  5,96:1 */
+  --weather-night:   var(--_weather-night);
+
+  --weather-cloud:   var(--_weather-cloud);
+  --_weather-rain:   #0A5C9E;   /* Azur       - Regen, Niesel;      6,23:1 */
+  --weather-rain:    var(--_weather-rain);
+  --_weather-snow:   #00768C;   /* Petrol     - Schnee, Graupel;    4,77:1 */
+  --weather-snow:    var(--_weather-snow);
+  --_weather-storm:  #8B2FC9;   /* Purpur     - Gewitter;           5,65:1 */
+  --weather-storm:   var(--_weather-storm);
+
+  --_weather-band-icy:  #0E7490;   /* unter 0 °C   */
+  --weather-band-icy:   var(--_weather-band-icy);
+  --_weather-band-cold: #0663C7;   /* 0 bis 9 °C   */
+  --weather-band-cold:  var(--_weather-band-cold);
+  --_weather-band-mild: #0F766E;   /* 10 bis 19 °C */
+  --weather-band-mild:  var(--_weather-band-mild);
+  --_weather-band-warm: #9F5700;   /* 20 bis 27 °C */
+  --weather-band-warm:  var(--_weather-band-warm);
+  --_weather-band-hot:  #C2410C;   /* ab 28 °C     */
+  --weather-band-hot:   var(--_weather-band-hot);
+
+  --weather-glow-opacity: 1;
+
+  --color-priority-none:     var(--neutral-400);
+  --_color-priority-low:     #5F5E5A;
+  --color-priority-low:      var(--_color-priority-low);
+  --_color-priority-medium:  #854D0E;
+  --color-priority-medium:   var(--_color-priority-medium);
+  --_color-priority-high:    #B4400E;
+  --color-priority-high:     var(--_color-priority-high);
+  --_color-priority-urgent:  #991B1B;
+  --color-priority-urgent:   var(--_color-priority-urgent);
+
+  --_color-priority-none-bg:   rgba(142, 142, 147, 0.08);
+  --color-priority-none-bg:    var(--_color-priority-none-bg);
+  --_color-priority-low-bg:    rgba(142, 142, 147, 0.12);
+  --color-priority-low-bg:     var(--_color-priority-low-bg);
+  --_color-priority-medium-bg: rgba(161, 98, 7, 0.12);
+  --color-priority-medium-bg:  var(--_color-priority-medium-bg);
+  --_color-priority-high-bg:   rgba(194, 65, 12, 0.12);
+  --color-priority-high-bg:    var(--_color-priority-high-bg);
+  --_color-priority-urgent-bg: rgba(185, 28, 28, 0.12);
+  --color-priority-urgent-bg:  var(--_color-priority-urgent-bg);
+
+  --tint-wash:     8%;
+  --tint-state:   12%;
+  --tint-surface: 16%;
+  --tint-raised:  24%;
+  --tint-hint:    50%;
+  --tint-ink:     70%;
+  --tint-shadow:  20%;
+
+  --seg-active-bg:     var(--color-surface);
+  --seg-active-shadow: var(--shadow-xs);
+
+  /* --------------------------------------------------------
+   * 7. Overlay / Backdrop
+   * -------------------------------------------------------- */
+  --_color-overlay:       rgba(0, 0, 0, 0.4);
+  --color-overlay:        var(--_color-overlay);
+  --_color-overlay-light: rgba(0, 0, 0, 0.2);
+  --color-overlay-light:  var(--_color-overlay-light);
+  --color-overlay-glass:  rgba(0, 0, 0, 0.28);  /* Glass-Modal-Overlay (zwischen overlay-light und overlay) */
+  --color-backdrop-fab:   rgba(0, 0, 0, 0.25);
+  --color-backdrop-glass: rgba(0, 0, 0, 0.16);  /* Subtiler FAB-Backdrop hinter Glass */
+
+  /* Glass-Overlays (fuer Elemente auf farbigen Hintergruenden) */
+  --color-glass:       rgba(255, 255, 255, 0.18);
+  --color-glass-hover: rgba(255, 255, 255, 0.3);
+  --color-glass-border: rgba(255, 255, 255, 0.15);
+  --color-danger-translucent:  rgba(255, 59, 48, 0.35);
+  --color-warning-translucent: rgba(255, 159, 10, 0.28);
+  --color-soon: var(--color-warning);
+
+  --focus-ring-width:        2px;
+  --focus-ring-color:        var(--color-accent);
+  --focus-ring-offset:       2px;
+  --focus-ring-offset-inset: -2px;
+
+  --shadow-drop-icon: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.14));
+  --_shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-sm:  var(--_shadow-sm);
+  --_shadow-md: 0 2px 10px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md:  var(--_shadow-md);
+  --_shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-lg:  var(--_shadow-lg);
+  --_shadow-xl: 0 18px 56px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-xl:  var(--_shadow-xl);
+  --_shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-xs:  var(--_shadow-xs);
+
+  --radius-2xs: 2px;
+  --radius-xs: 4px;
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 26px;
+  --radius-full: 9999px;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+
+
+  --text-xs:   0.75rem;    /* 12px - Caption 1: Badges, Nav-Labels */
+  --text-sm:   0.875rem;   /* 14px - Kompakte Interaktion */
+  --text-base: 1rem;       /* 16px - Callout, Inputs (iOS-Zoom-Schwelle) */
+  --text-lg:   1.125rem;   /* 18px */
+  --text-xl:   1.25rem;    /* 20px - Title 3 */
+  --text-2xl:  1.375rem;   /* 22px - Title 2 */
+  --text-3xl:  1.75rem;    /* 28px - Title 1 */
+  --text-4xl:  2.125rem;   /* 34px - Large Title */
+  --text-5xl:  3rem;       /* 48px - Display auf einzeiliger Kachel */
+  --text-6xl:  4.5rem;     /* 72px - Display auf hoher Kachel */
+
+  /* Semantische Rollen — Apple-Skala:
+     Large Title 34 · Title2 22 · Title3 20 · Headline 17 (semibold) ·
+     Body 17 · Subheadline 15 · Footnote 13 · Caption2 11 */
+  --type-hero-mobile:          2.125rem;   /* 34px — Large Title */
+  --type-hero-desktop:         2.125rem;   /* 34px — Large Title bleibt stabil */
+  --type-page-title-mobile:    2.125rem;   /* 34px — Large Title */
+  --type-page-title-desktop:   2.125rem;   /* 34px */
+  --type-toolbar-title:        1.375rem;   /* 22px — Modul-Kopf-Titel (Canonical Page Head), Title-2-Schnitt */
+  --type-section-title:        1.25rem;    /* 20px — Title 3 */
+  --type-card-title:           1.0625rem;  /* 17px — Headline (semibold) */
+  --type-body:                 1.0625rem;  /* 17px — Body */
+  --type-secondary:            0.9375rem;  /* 15px — Subheadline */
+  --type-caption:              0.8125rem;  /* 13px — Footnote */
+  --type-micro:                0.6875rem;  /* 11px — Caption 2 */
+
+
+  /* Line-Heights */
+  --line-height-tight:   1.21;   /* Large Title 34/41 */
+  --line-height-snug:    1.3;
+  --line-height-base:    1.47;   /* Body 17/25 */
+  --line-height-relaxed: 1.6;
+
+
+  --tracking-normal:  0;        /* Standard */
+
+
+  /* Font-Weights */
+  --font-weight-regular:  400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+
+  --space-px: 1px;
+  --space-0h: 2px;
+  --space-1:  4px;
+  --space-1h: 6px;
+  --space-2:  8px;
+  --space-2h: 10px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+
+  --target-md: 40px;    /* Desktop Touch-Target (Maus) */
+  --target-lg: 48px;    /* Mobile Touch-Target (Finger) */
+  --target-base: 44px;
+
+
+  --icon-md: 16px;   /* Standard: Buttons, Listenzeilen */
+  --icon-lg: 20px;   /* Betonte Aktionen, Toolbar */
+  --icon-xl: 24px;   /* FAB, Empty-State, Dialog-Kopf */
+
+  --icon-stroke: 1.35;
+
+  --bp-mobile:  640px;
+  --bp-tablet:  768px;
+  --bp-desktop: 1024px;
+  --bp-wide:    1440px;
+  --bp-short:   500px;
+
+  /* --------------------------------------------------------
+   * 12. Layout
+   * -------------------------------------------------------- */
+  --nav-height-mobile: 60px;
+  /* Schwebende Kapsel (Liquid Glass): Zone = Kapsel + 8px Luft oben und unten. */
+  --nav-bottom-height: calc(var(--nav-height-mobile) + var(--space-4) + var(--safe-area-inset-bottom));
+  --sidebar-width: 56px;             /* Fallback (mobile: sidebar hidden) */
+  --sidebar-width-expanded: 220px;   /* full sidebar (≥1024px), max 240px laut Spec */
+  --content-max-width: 1280px;
+  --content-max-width-narrow: 720px;
+  /* Page Composition System width tokens (PAGE-COMPOSITION.md) */
+  --layout-reading: var(--content-max-width-narrow);
+  --layout-content: 60rem;
+  --layout-wide: 75rem;
+  --page-gutter: var(--space-4);
+  --page-inline-pad: max(
+    var(--page-gutter),
+    calc((100% - var(--content-max-width)) / 2)
+  );
+  --cal-hour-height: 56px;
+  --cal-hour-height-day: 40px;
+  --cal-gutter-width: 64px;
+  --sub-tabs-height: 52px;
+  --kitchen-tabs-height: 56px;
+
+  --fab-size: 52px;
+  --fab-gap: var(--space-6);
+  /* Mitte der Nav-Kapsel: safe-area + Bar-Polster + halbe Resthoehe. */
+  --fab-offset-bottom: calc(
+    var(--safe-area-inset-bottom) + var(--space-2) +
+    (var(--nav-height-mobile) - var(--fab-size)) / 2
+  );
+  --fab-safe-zone: calc(var(--fab-gap) + var(--fab-size) + var(--space-4));
+  --bulk-pill-height: var(--target-base);
+  --bulk-pill-safe-zone: calc(var(--bulk-pill-height) + var(--space-8));
+  --nav-capsule-max: 560px;
+  --nav-bar-gutter: var(--space-2);
+  --nav-capsule-inset: max(var(--nav-bar-gutter), calc((100% - var(--nav-capsule-max)) / 2));
+
+  /* --------------------------------------------------------
+   * 13. Sidebar
+   * -------------------------------------------------------- */
+  --_sidebar-bg:           var(--_neutral-100);
+  --sidebar-bg:            var(--_sidebar-bg);
+  --_sidebar-shadow-light: rgba(255, 255, 255, 0.6);
+  --sidebar-shadow-light:  var(--_sidebar-shadow-light);
+  --_sidebar-shadow-dark:  rgba(0, 0, 0, 0.08);
+  --sidebar-shadow-dark:   var(--_sidebar-shadow-dark);
+  --safe-area-inset-top:    env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+
+
+  --duration-xs:  120ms;   /* Icon-/Well-Presses, Label-Fades */
+  --duration-sm:  150ms;   /* = fast (Hover, Farben) */
+  --duration-md:  200ms;   /* Seiten-/Panel-Einblendungen */
+  --duration-lg:  250ms;   /* = base (Sheets, Overlays) */
+  --duration-xl:  300ms;   /* betonte Einblendungen */
+  --duration-2xl: 400ms;   /* = slow (Layout-Umbauten, Sidebar) */
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* --------------------------------------------------------
+   * 15. Z-Indizes
+   * -------------------------------------------------------- */
+  --z-sticky:  10;
+  --z-dropdown: 50;
+  --z-nav:     100;
+  --z-modal:   200;
+
+  --z-toast:   300;
+
+
+
+  --_glass-bg-elevated: rgba(250, 250, 252, 0.86);
+  --glass-bg-elevated:  var(--_glass-bg-elevated);
+  --_glass-border:      rgba(255, 255, 255, 0.65);
+  --glass-border:       var(--_glass-border);
+  --_glass-border-subtle: rgba(255, 255, 255, 0.38);
+  --glass-border-subtle:  var(--_glass-border-subtle);
+  --glass-border-overlay: rgba(255, 255, 255, 0.10);  /* immer-dunkle Surfaces (Toasts, Overlays) */
+
+  --_glass-bg-card:       var(--_color-surface-glass);
+  --glass-bg-card:        var(--_glass-bg-card);
+  --_glass-bg-card-hover: rgba(250, 250, 252, 0.74);
+  --glass-bg-card-hover:  var(--_glass-bg-card-hover);
+
+  /* a3) Tint: Modul-Akzentfarbe als subtile Glass-Tonung */
+  --_glass-tint-strength: 6%;
+  --glass-tint-strength:  var(--_glass-tint-strength);
+
+  --blur-2xs: blur(2px);
+  --blur-xs:  blur(6px);
+  --blur-sm:  blur(10px);
+  --blur-md:  blur(20px);
+  --blur-lg:  blur(32px);
+
+  --opacity-glass-elevated: 0.92;
+
+  /* d) Highlights / Specular */
+  --_glass-highlight:        rgba(255, 255, 255, 0.70);
+  --glass-highlight:         var(--_glass-highlight);
+  --_glass-highlight-subtle: rgba(255, 255, 255, 0.35);
+  --glass-highlight-subtle:  var(--_glass-highlight-subtle);
+
+  --_glass-sheen: rgba(255, 255, 255, 0.35);
+  --glass-sheen:  var(--_glass-sheen);
+
+  --glass-inset-strength: 1;
+  --glass-inset-soft:     inset 0 1px 0 rgba(255, 255, 255, calc(0.18 * var(--glass-inset-strength)));
+  --glass-inset-base:     inset 0 1px 0 rgba(255, 255, 255, calc(0.20 * var(--glass-inset-strength)));
+  --glass-inset-medium:   inset 0 1px 0 rgba(255, 255, 255, calc(0.22 * var(--glass-inset-strength)));
+  --glass-inset-elevated: inset 0 1px 0 rgba(255, 255, 255, calc(0.28 * var(--glass-inset-strength)));
+  --glass-inset-strong:   inset 0 1px 0 rgba(255, 255, 255, calc(0.32 * var(--glass-inset-strength)));
+
+  --glass-inset-bottom-base:  inset 0 -1px 0 rgba(0, 0, 0, calc(0.12 * var(--glass-inset-strength)));
+  --glass-inset-bottom-hover: inset 0 -1px 0 rgba(0, 0, 0, calc(0.16 * var(--glass-inset-strength)));
+  --glass-inset-bottom-lift:  inset 0 -1px 0 rgba(255, 255, 255, calc(0.04 * var(--glass-inset-strength)));
+  --glass-inset-thumb:        inset 0  1px 0 rgba(255, 255, 255, calc(0.90 * var(--glass-inset-strength))),
+                              inset 0 -1px 0 rgba(0, 0, 0, calc(0.08 * var(--glass-inset-strength)));
+  --glass-inset-input:        inset 0  1px 2px rgba(0, 0, 0, calc(0.04 * var(--glass-inset-strength)));
+
+  /* e) Glass-Schatten */
+  --_glass-shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(255, 255, 255, 0.55);
+  --glass-shadow-sm:  var(--_glass-shadow-sm);
+  --_glass-shadow-md: 0 6px 24px rgba(0, 0, 0, 0.10), 0 0 0 1px rgba(255, 255, 255, 0.50);
+  --glass-shadow-md:  var(--_glass-shadow-md);
+  --_glass-shadow-lg: 0 10px 44px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(255, 255, 255, 0.45);
+  --glass-shadow-lg:  var(--_glass-shadow-lg);
+  --_glass-shadow-capsule: 0 8px 24px rgba(0, 0, 0, 0.14),
+                           0 2px 8px rgba(0, 0, 0, 0.08),
+                           0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  --glass-shadow-capsule:  var(--_glass-shadow-capsule);
+
+  /* f) Glass-Radien — iOS-26-Kurvatur */
+  --radius-glass-card:   26px;
+  --radius-glass-inner:  18px;
+  --radius-glass-chip:   var(--radius-full);
+
+  --ease-glass:       cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-sidebar-glide: cubic-bezier(0.28, 1.25, 0.36, 1);
+  --transition-glass: 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --_app-backdrop-accent-strength: 2%;
+  --app-backdrop-accent-strength:  var(--_app-backdrop-accent-strength);
+  --_app-backdrop-secondary-strength: 1%;
+  --app-backdrop-secondary-strength: var(--_app-backdrop-secondary-strength);
+  --lg-blob-opacity:   0.16;
+
+
+
+  --mask-opaque: #000;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --page-gutter: var(--space-8);
+    --fab-size: var(--target-lg);
+    --fab-gap: var(--space-8);
+    --fab-offset-bottom: var(--fab-gap);
+  }
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --fab-safe-zone: 0px;
+    --fab-size: var(--target-base);
+  }
+}
+
+
+@media (hover: none) {
+  :root {
+    --target-base: var(--target-lg);
+  }
+}
+
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --_neutral-50:  #0F0E0D;
+    --_neutral-100: #191816;   /* Buehne — warme Kohle, L=0.0092 (dreifach ueber #0A0A0C) */
+    --_neutral-150: #2B2825;   /* Surface — 1.21:1 ueber der Buehne (vorher 1.15:1) */
+    --_neutral-200: #37332E;
+    --_neutral-250: #443E37;
+    --_neutral-300: #514B45;
+    --_neutral-400: #6B665E;
+    --_neutral-500: #948E85;
+
+    --_neutral-700: #CBC5BC;
+    --_neutral-800: #E7E2DA;
+    --_neutral-900: #F5F3ED;
+    --_neutral-950: #FBFAF7;
+
+    --_color-surface:          #2B2825;
+    --_color-surface-3:        #37332E;
+    --_color-surface-elevated: #37332E;
+    --_color-surface-hover:    #37332E;
+    --_color-surface-elevated-hover: #443E37;
+    --_color-surface-work:     #2B2825;
+    --_color-surface-raised:   #37332E;
+    --_color-surface-glass:    rgba(43, 40, 37, 0.66);
+
+    --color-border-subtle: #3E3933;  /* Trenner, ruhige Kartenkante */
+    --color-border:        #47423B;  /* Standardkante, Formfelder */
+    --color-border-strong: #6F6A61;  /* Hover, betonte Rahmen (~2.7:1) */
+
+    --_sidebar-bg:           #221F1D;
+    --_sidebar-shadow-light: rgba(255, 255, 255, 0.04);
+    --_sidebar-shadow-dark:  rgba(0, 0, 0, 0.5);
+
+
+    --_color-accent-hover:      #BCA6FC;
+    --_color-accent-light:      #241A45;  /* >=4.5:1 unter --color-accent (5.87) */
+    --_color-accent-subtle:     #1D1438;
+
+    --_color-btn-primary-hover: #6D28D9;
+    --_color-accent-secondary:  #C4B5FD;
+
+    /* Semantik — Apple Dark-Varianten */
+    --_color-success:       #30D158;
+    --_color-warning:       #FF9F0A;
+
+    --_color-info:          #409CFF;
+    --_color-text-tertiary: #A9A39A;
+    --_color-success-light: #0E2E17;
+    --_color-warning-light: #33230A;
+    --_color-danger-light:  #3A1210;
+    --_color-info-light:    #10263E;
+
+    --_color-success-hover: #6ADE87;
+    --_color-warning-hover: #FFB84A;
+    --_color-danger-hover:  #FF857E;
+    --_color-info-hover:    #60ACFF;
+
+    --_color-success-ink:   #6ADE87;
+    --_color-warning-ink:   #FFB84A;
+    --_color-danger-ink:    #FF857E;
+    --_color-info-ink:      #60ACFF;
+
+    /* Toast: dunkler Text auf vividen Farben */
+    --_toast-success-text: #04200D;   /* auf #30D158 */
+    --_toast-warning-text: #2B1A00;   /* auf #FF9F0A */
+    --_toast-danger-text:  #330606;   /* auf #FF6961 */
+
+    --_shell-danger-ink:   #9B000F;
+
+    --_color-ink-on-vivid: #0A0A0C;
+
+    --_chart-series-1: #7D7AFF;
+    --_chart-series-2: #22D3EE;
+    --_chart-series-3: #FB923C;
+    --_chart-series-4: #60A5FA;
+    --_chart-series-5: #FCD34D;
+    --_chart-series-6: #F472B6;
+    --_chart-series-7: #4ADE80;
+
+
+                                    * Der Share ist die Zusage, nicht der Wert - stuende hier
+                                    * ein eigener Ton, loeste der Router auf /dashboard einen
+                                    * anderen Wert in
+                                    * der Akzent als geprueft abgelegt hat. Traegt beide Rollen:
+                                    * als Text 4,96 auf --color-surface-raised, als Flaeche
+                                    * unter
+                                    * Dark-Tints (6,17 bis 11,35). */
+
+                                    * 6,00:1 als Text auf -raised, 7,86 unter der dunklen Tinte */
+    --_family-work:     #4ADE80;
+    --_family-kitchen:  #FB923C;
+    --_family-money:    #2DD4BF;
+    --_family-people:   #FB7185;
+    --_family-health:   #DB60CB;
+    --_family-records:  #7E9BCC;
+    --_family-neutral:  #94A3B8;
+    --cycle-period:    #F871A0;
+    --cycle-fertile:   #34D3B0;
+    --cycle-ovulation: #56C7F5;
+
+    --_meal-breakfast:       #FF9F0A;
+    --_meal-breakfast-light: #33230A;
+    --_meal-lunch:           #4ADE80;
+    --_meal-lunch-light:     #0E2E17;
+    --_meal-dinner:          #A78BFA;
+    --_meal-dinner-light:    #241A45;
+    --_meal-snack:           #FB923C;
+    --_meal-snack-light:     #3D2010;
+    --_meal-breakfast-ink:   #FFB84A;
+    --_meal-lunch-ink:       #89EAAC;
+    --_meal-dinner-ink:      #BCA6FC;
+    --_meal-snack-ink:       #FCAA67;
+
+    --_source-mealie:        #2DD4BF;
+    --_source-mealie-light:  #0F2E2A;
+    --_source-tandoor:        #60A5FA;
+    --_source-tandoor-light:  #172554;
+
+    --_weather-clear:  #FBBF24;
+    --_weather-night:  #A5B4FC;
+    --_weather-cloud:  #A8BBCC;
+    --_weather-rain:   #7FC4F0;
+    --_weather-snow:   #5EDDE8;
+    --_weather-storm:  #D8A6F5;
+    --_weather-band-icy:  #67E8F9;
+    --_weather-band-cold: #7FB8FF;
+    --_weather-band-mild: #5EEAD4;
+    --_weather-band-warm: #FBBF24;
+    --_weather-band-hot:  #FB923C;
+
+    --_color-priority-low:       #C7C7CC;
+    --_color-priority-medium:    #FBBF24;
+    --_color-priority-high:      #FB923C;
+    --_color-priority-urgent:    #FCA5A5;
+    --_color-priority-none-bg:   rgba(142, 142, 147, 0.12);
+    --_color-priority-low-bg:    rgba(142, 142, 147, 0.18);
+    --_color-priority-medium-bg: rgba(230, 147, 10, 0.18);
+    --_color-priority-high-bg:   rgba(212, 81, 30, 0.18);
+    --_color-priority-urgent-bg: rgba(229, 83, 75, 0.18);
+
+    --_color-overlay:       rgba(0, 0, 0, 0.6);
+    --_color-overlay-light: rgba(0, 0, 0, 0.35);
+
+    --_shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.30), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    --_shadow-md: 0 4px 14px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    --_shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.50), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --_shadow-xl: 0 18px 56px rgba(0, 0, 0, 0.65), 0 4px 12px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --_shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+
+    --_glass-bg-elevated:      rgba(45, 42, 39, 0.88);
+    --_glass-border:           rgba(255, 255, 255, 0.12);
+    --_glass-border-subtle:    rgba(255, 255, 255, 0.14);
+    --_glass-highlight:        rgba(255, 255, 255, 0.09);
+    --_glass-highlight-subtle: rgba(255, 255, 255, 0.05);
+    --_glass-sheen: rgba(255, 255, 255, 0.16);
+    --_glass-shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.07);
+    --_glass-shadow-md: 0 6px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    --_glass-shadow-lg: 0 10px 44px rgba(0, 0, 0, 0.60), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --_glass-bg-card:          var(--_color-surface-glass);
+    --_glass-bg-card-hover:    rgba(43, 40, 37, 0.80);
+    --_glass-tint-strength:    6%;
+    --_app-backdrop-accent-strength: 1.5%;
+    --_app-backdrop-secondary-strength: 0.75%;
+    --lg-blob-opacity:         0.20;
+  }
+}
+
+@media screen {
+  [data-theme="dark"] {
+    --_neutral-50:  #0F0E0D;
+    --_neutral-100: #191816;   /* Buehne — warme Kohle, L=0.0092 (dreifach ueber #0A0A0C) */
+    --_neutral-150: #2B2825;   /* Surface — 1.21:1 ueber der Buehne (vorher 1.15:1) */
+    --_neutral-200: #37332E;
+    --_neutral-250: #443E37;
+    --_neutral-300: #514B45;
+    --_neutral-400: #6B665E;
+    --_neutral-500: #948E85;
+
+    --_neutral-700: #CBC5BC;
+    --_neutral-800: #E7E2DA;
+    --_neutral-900: #F5F3ED;
+    --_neutral-950: #FBFAF7;
+
+    /* Semantische Aliase folgen automatisch via var(--neutral-*) */
+    --_color-surface:          #2B2825;
+    --_color-surface-3:        #37332E;
+    --_color-surface-elevated: #37332E;
+    --_color-surface-hover:    #37332E;
+    --_color-surface-elevated-hover: #443E37;
+    --_color-surface-work:     #2B2825;
+    --_color-surface-raised:   #37332E;
+    --_color-surface-glass:    rgba(43, 40, 37, 0.66);
+
+    --color-border-subtle: #3E3933;
+    --color-border:        #47423B;
+    --color-border-strong: #6F6A61;
+
+    /* Sidebar */
+    --_sidebar-bg:           #221F1D;
+    --_sidebar-shadow-light: rgba(255, 255, 255, 0.04);
+    --_sidebar-shadow-dark:  rgba(0, 0, 0, 0.5);
+
+    /* Akzent — Violett Dark (Werte und Begruendung: Dark-Block oben) */
+    --_color-accent:            #A78BFA;
+    --_color-accent-hover:      #BCA6FC;
+    --_color-accent-light:      #241A45;  /* >=4.5:1 unter --color-accent (5.87) */
+    --_color-accent-subtle:     #1D1438;
+    --_color-btn-primary:       #7C3AED;
+    --_color-btn-primary-hover: #6D28D9;
+    --_color-accent-secondary:  #C4B5FD;
+
+    /* Semantische Farben */
+    --_color-success:       #30D158;
+    --_color-warning:       #FF9F0A;
+    --_color-danger:        #FF6961;
+    --_color-info:          #409CFF;
+    /* Warm statt kuehl - Begruendung im Media-Block oben (Dark-Kur 2026-08-17). */
+    --_color-text-tertiary: #A9A39A;
+    --_color-success-light: #0E2E17;
+    --_color-warning-light: #33230A;
+    --_color-danger-light:  #3A1210;
+    --_color-info-light:    #10263E;
+
+    --_color-success-hover: #6ADE87;
+    --_color-warning-hover: #FFB84A;
+    --_color-danger-hover:  #FF857E;
+    --_color-info-hover:    #60ACFF;
+
+    --_color-success-ink:   #6ADE87;
+    --_color-warning-ink:   #FFB84A;
+    --_color-danger-ink:    #FF857E;
+    --_color-info-ink:      #60ACFF;
+
+    /* Toast: dunkler Text auf vividen Farben */
+    --_toast-success-text: #04200D;
+    --_toast-warning-text: #2B1A00;
+    --_toast-danger-text:  #330606;
+
+    --_shell-danger-ink:   #9B000F;
+
+    --_color-ink-on-vivid: #0A0A0C;
+
+    /* Datenreihen */
+    --_chart-series-1: #7D7AFF;
+    --_chart-series-2: #22D3EE;   /* Cyan - siehe Dark-Block oben */
+    --_chart-series-3: #FB923C;
+    --_chart-series-4: #60A5FA;
+    --_chart-series-5: #FCD34D;
+    --_chart-series-6: #F472B6;
+    --_chart-series-7: #4ADE80;
+
+    /* Modul-Akzente (Familientoene) */
+
+    --_family-time:     #4CB8F0;
+    --_family-work:     #4ADE80;
+    --_family-kitchen:  #FB923C;
+    --_family-money:    #2DD4BF;
+    --_family-people:   #FB7185;
+    --_family-health:   #DB60CB;
+    --_family-records:  #7E9BCC;
+    --_family-neutral:  #94A3B8;
+    --cycle-period:    #F871A0;
+    --cycle-fertile:   #34D3B0;
+    --cycle-ovulation: #56C7F5;
+
+    /* Mahlzeit-Typ */
+    --_meal-breakfast:       #FF9F0A;
+    --_meal-breakfast-light: #33230A;
+    --_meal-lunch:           #4ADE80;
+    --_meal-lunch-light:     #0E2E17;
+    --_meal-dinner:          #A78BFA;
+    --_meal-dinner-light:    #241A45;
+    --_meal-snack:           #FB923C;
+    --_meal-snack-light:     #3D2010;
+    --_meal-breakfast-ink:   #FFB84A;
+    --_meal-lunch-ink:       #89EAAC;
+    --_meal-dinner-ink:      #BCA6FC;
+    --_meal-snack-ink:       #FCAA67;
+
+    --_source-mealie:        #2DD4BF;
+    --_source-mealie-light:  #0F2E2A;
+    --_source-tandoor:        #60A5FA;
+    --_source-tandoor-light:  #172554;
+
+    /* Wetterlagen (5b) - Zwilling des prefers-color-scheme-Blocks. */
+    --_weather-clear:  #FBBF24;
+    --_weather-night:  #A5B4FC;
+    --_weather-cloud:  #A8BBCC;
+    --_weather-rain:   #7FC4F0;
+    --_weather-snow:   #5EDDE8;
+    --_weather-storm:  #D8A6F5;
+    --_weather-band-icy:  #67E8F9;
+    --_weather-band-cold: #7FB8FF;
+    --_weather-band-mild: #5EEAD4;
+    --_weather-band-warm: #FBBF24;
+    --_weather-band-hot:  #FB923C;
+
+    --_color-priority-low:       #C7C7CC;
+    --_color-priority-medium:    #FBBF24;
+    --_color-priority-high:      #FB923C;
+    --_color-priority-urgent:    #FCA5A5;
+    --_color-priority-none-bg:   rgba(142, 142, 147, 0.12);
+    --_color-priority-low-bg:    rgba(142, 142, 147, 0.18);
+    --_color-priority-medium-bg: rgba(230, 147, 10, 0.18);
+    --_color-priority-high-bg:   rgba(212, 81, 30, 0.18);
+    --_color-priority-urgent-bg: rgba(229, 83, 75, 0.18);
+
+    /* Overlay */
+    --_color-overlay:       rgba(0, 0, 0, 0.6);
+    --_color-overlay-light: rgba(0, 0, 0, 0.35);
+
+    --_shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.30), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    --_shadow-md: 0 4px 14px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    --_shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.50), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --_shadow-xl: 0 18px 56px rgba(0, 0, 0, 0.65), 0 4px 12px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --_shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+
+    /* Glass — warm statt iOS-Neutralgrau (Media-Block oben) */
+    --_glass-bg-elevated:     rgba(45, 42, 39, 0.88);
+    --_glass-border:          rgba(255, 255, 255, 0.12);
+    --_glass-border-subtle:   rgba(255, 255, 255, 0.14);
+    --_glass-highlight:       rgba(255, 255, 255, 0.09);
+    --_glass-highlight-subtle: rgba(255, 255, 255, 0.05);
+    --_glass-sheen: rgba(255, 255, 255, 0.16);
+    --_glass-shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.07);
+    --_glass-shadow-md: 0 6px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    --_glass-shadow-lg: 0 10px 44px rgba(0, 0, 0, 0.60), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --_glass-bg-card:         var(--_color-surface-glass);
+    --_glass-bg-card-hover:   rgba(43, 40, 37, 0.80);
+    --_glass-tint-strength:   6%;
+    --_app-backdrop-accent-strength: 1.5%;
+    --_app-backdrop-secondary-strength: 0.75%;
+    --lg-blob-opacity:        0.20;
+  }
+}
+
+/* ================================================================
+ * Accessibility: prefers-reduced-transparency
+ * Glass-Effekte abschalten - opake Fallbacks.
+ * ================================================================ */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-bg-elevated: var(--color-surface);
+    --glass-bg-card:     var(--color-surface);
+    --glass-bg-card-hover: var(--color-surface-2);
+    --glass-border:      var(--color-border);
+    --glass-border-subtle: var(--color-border-subtle);
+    --glass-highlight:        transparent;
+    --glass-highlight-subtle: transparent;
+    --glass-sheen:            transparent;
+    --glass-tint-strength: 0%;
+    --blur-2xs: blur(0px);
+    --blur-xs:  blur(0px);
+    --blur-sm:  blur(0px);
+    --blur-md:  blur(0px);
+    --blur-lg:  blur(0px);
+    --opacity-glass-elevated: 1;
+    --lg-blob-opacity: 0;     /* Backdrop-Blobs aus */
+    --weather-glow-opacity: 0; /* Wetter-Lichthauch aus - gleiche Gattung (5b) */
+    --lg-specular: 0;
+    --glass-inset-strength: 0;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --glass-bg-elevated: var(--color-surface);
+    --glass-border:      var(--color-text-primary);
+    --glass-border-subtle: var(--color-text-secondary);
+    --glass-highlight:        transparent;
+    --glass-highlight-subtle: transparent;
+    --glass-sheen:            transparent;
+    --blur-2xs: blur(0px);
+    --blur-xs:  blur(0px);
+    --blur-sm:  blur(0px);
+    --blur-md:  blur(0px);
+    --blur-lg:  blur(0px);
+
+
+    --lg-blob-opacity: 0;     /* Backdrop-Blobs aus */
+    --weather-glow-opacity: 0; /* Wetter-Lichthauch aus - gleiche Gattung (5b) */
+    --lg-specular: 0;
+    --glass-inset-strength: 0;
+  }
+}

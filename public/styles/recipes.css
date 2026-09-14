@@ -1,0 +1,288 @@
+/**
+ * Modul: Rezepte (Recipes)
+ * Zweck: Styles fuer gespeicherte Rezepte und Aktionskarten
+ */
+
+.recipes-page {
+  --module-accent: var(--module-kitchen);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .recipes-page {
+    height: 100%;
+  }
+}
+
+.recipes-list {
+  padding-inline: var(--page-inline-pad);
+  padding-block-start: var(--space-4);
+}
+
+
+/* --------------------------------------------------------
+ * Rezeptzeile
+ * -------------------------------------------------------- */
+
+
+.recipe-row__heading {
+  margin: 0;
+  font: inherit;
+  display: flex;
+  min-width: 0;
+}
+
+.recipe-row__toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: start;
+}
+
+.recipe-row__toggle .list-row__name {
+  flex-basis: 0;
+}
+
+.recipe-row__toggle .list-row__meta {
+  flex-shrink: 0;
+  min-width: 15ch;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.recipe-row__badge-slot {
+  display: contents;
+}
+
+.recipe-row__thumb {
+  width: var(--target-md);
+  height: var(--target-md);
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.recipe-row__thumb-img {
+  width: 100%;
+  height: 100%;
+  /* `object-fit: cover` schneidet statt zu verzerren. */
+  object-fit: cover;
+}
+
+.recipe-row__thumb--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-surface-2);
+  color: var(--color-text-tertiary);
+}
+
+.recipe-row__toggle .source-badge {
+  flex-shrink: 0;
+}
+
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+}
+.source-badge--mealie {
+  background: var(--source-mealie-light);
+  color: var(--source-mealie);
+}
+.source-badge--tandoor {
+  background: var(--source-tandoor-light);
+  color: var(--source-tandoor);
+}
+
+
+.recipe-row__inline-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.recipe-row__more {
+  display: none;
+}
+
+@container list-rows (max-width: 30rem) {
+  .recipe-row__inline-actions {
+    display: none;
+  }
+
+  .recipe-row__more {
+    display: flex;
+    align-items: center;
+  }
+
+  /* `order`, damit die Vorlesereihenfolge Name → Zutatenzahl → Chevron bleibt. */
+  .recipe-row__toggle {
+    flex-wrap: wrap;
+    row-gap: var(--space-0h);
+  }
+
+  .recipe-row__badge-slot {
+    display: flex;
+    flex: 1 0 100%;
+    order: 1;
+  }
+
+  .recipe-row__toggle .list-row__meta {
+    flex: 1 0 100%;
+    order: 2;
+    min-width: 0;
+    text-align: start;
+  }
+}
+
+
+.recipe-row__planned {
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.list-row__meta + .recipe-row__planned::before {
+  content: '·';
+  margin-inline: var(--space-1) var(--space-1);
+  color: var(--color-text-tertiary);
+}
+
+@container list-rows (max-width: 26rem) {
+  .recipe-row__planned { display: none; }
+}
+
+.recipe-row__chevron {
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+  transition: transform var(--transition-fast);
+}
+
+.recipe-row__chevron--placeholder {
+  visibility: hidden;
+}
+
+.recipe-row__toggle[aria-expanded="true"] .recipe-row__chevron {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recipe-row__chevron {
+    transition: none;
+  }
+}
+
+/* --------------------------------------------------------
+ * Aufklapp-Detail
+ * -------------------------------------------------------- */
+
+.recipe-detail {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-3) var(--space-4);
+}
+
+.recipe-detail__ingredients {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.recipe-detail__ingredient {
+  font-size: var(--type-body);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.recipe-detail__notes {
+  margin: 0;
+  font-size: var(--type-body);
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+}
+
+.recipe-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+
+.recipes-search {
+  flex: 1;
+  max-width: 420px;
+}
+
+.recipes-source-filter-menu {
+  min-width: 160px;
+}
+
+
+
+.recipe-card__meal-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+
+
+.recipe-ingredient-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+
+.recipe-add-ingredient {
+  align-self: flex-start;
+}
+
+.recipe-meal-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.recipe-meal-types__option {
+  gap: var(--space-1);
+}
+
+.recipe-image-editor {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.recipe-image-preview {
+  width: 84px;
+  height: 84px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--module-accent) var(--tint-surface), var(--color-surface));
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.recipe-image-preview__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+

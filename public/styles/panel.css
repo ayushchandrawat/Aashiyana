@@ -1,0 +1,344 @@
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.panel-head__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.panel-head__title {
+  color: var(--color-text-secondary);
+}
+
+.segmented {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: var(--space-0h);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-3);
+}
+
+.segmented__item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--target-base);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.segmented__item:hover:not(.is-active) {
+  color: var(--color-text-primary);
+}
+
+.segmented__item.is-active {
+  background: var(--seg-active-bg);
+  box-shadow: var(--seg-active-shadow);
+  color: color-mix(in srgb, var(--module-accent, var(--color-accent)) var(--tint-ink), var(--color-text-primary));
+}
+
+.segmented__item i {
+  width: 14px;
+  height: 14px;
+}
+
+.segmented__item:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* --------------------------------------------------------
+ * Kennzahl-Zeile und Kennzahlkarte
+ * -------------------------------------------------------- */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--summary-cards, 3), minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  flex-shrink: 0;
+  container: metric-grid / inline-size;
+}
+
+.metric-grid--expenses-only {
+  --summary-cards: 1;
+}
+
+/* Vierer-Zeile (Abos). */
+.metric-grid--quad { --summary-cards: 4; }
+
+.metric-card {
+  background-color: var(--color-surface);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0h);
+  min-width: 0;
+  position: relative;
+}
+
+.metric-card__label,
+.metric-card__value,
+.metric-card__trend,
+.metric-card__note,
+.metric-card__progress {
+  position: relative;
+  z-index: 1;
+}
+
+.metric-card--tile {
+  text-decoration: none;
+  color: var(--color-text-primary);
+  gap: var(--space-1);
+  justify-content: center;
+  transition: background-color var(--transition-fast), transform var(--duration-xs) var(--ease-out);
+}
+
+.metric-card--tile:hover {
+  background-color: var(--color-surface-elevated-hover);
+}
+
+.metric-card--tile:active {
+  transform: scale(0.98);
+}
+
+.metric-card__tile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.metric-card__tile-head .metric-card__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metric-card--tile:active {
+    transform: none;
+  }
+}
+
+.metric-card__label {
+  color: var(--color-text-secondary);
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.metric-card__value {
+  font-size: var(--text-3xl);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-tight);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+@container metric-grid (max-width: 600px) {
+  .metric-card__value {
+    font-size: var(--text-2xl);
+  }
+}
+
+@container metric-grid (max-width: 400px) {
+  .metric-card__value {
+    font-size: var(--text-xl);
+  }
+}
+
+@media (max-width: 639px) {
+  .metric-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+
+  .metric-grid > .metric-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+.metric-card__note {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.metric-card__note--danger { color: var(--color-danger); }
+
+.metric-card__progress {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-2);
+  overflow: hidden;
+  margin-top: var(--space-1);
+}
+
+.metric-card__progress > span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform: scaleX(var(--fill, 0));
+  transform-origin: left center;
+  background: var(--color-accent);
+  transition: transform var(--transition-base);
+}
+
+.metric-card__progress--over > span { background: var(--color-danger); }
+
+@media (prefers-reduced-motion: reduce) {
+  .metric-card__progress > span { transition: none; }
+}
+
+.metric-card--positive .metric-card__value { color: var(--color-success); }
+.metric-card--negative .metric-card__value { color: var(--color-danger); }
+.metric-card--neutral  .metric-card__value { color: var(--color-text-primary); }
+
+.metric-card--income   .metric-card__value { color: var(--color-success); }
+.metric-card--expenses .metric-card__value { color: var(--color-danger);  }
+.metric-card--balance  .metric-card__value { color: var(--color-text-primary); }
+.metric-card--balance-positive .metric-card__value { color: var(--color-success); }
+.metric-card--balance-negative .metric-card__value { color: var(--color-danger);  }
+.metric-card--balance-neutral  .metric-card__value { color: var(--color-text-primary); }
+
+.metric-card__trend {
+  font-size: var(--text-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.metric-card__trend svg { flex-shrink: 0; }
+
+.metric-card__trend--positive { color: var(--color-success); }
+.metric-card__trend--negative { color: var(--color-danger);  }
+.metric-card__trend--neutral  { color: var(--color-text-secondary); }
+
+.metric-card__head {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  min-width: 0;
+}
+
+.metric-card__head .metric-card__label {
+  flex: 1 1 auto;
+  hyphens: manual;
+}
+
+.metric-card__icon {
+  flex-shrink: 0;
+  width: var(--icon-md);
+  height: var(--icon-md);
+  color: inherit;
+}
+
+.metric-card__body {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.metric-card__unit {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.metric-card__value--empty {
+  color: var(--color-text-tertiary, var(--color-text-secondary));
+}
+
+.chart__grid {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.chart__axis {
+  font-size: var(--text-xs);
+  fill: var(--color-text-secondary);
+}
+
+.chart__axis--y {
+  fill: var(--color-text-tertiary);
+}
+
+.metric-card__spark {
+  width: 100%;
+  height: 22px;
+  display: block;
+  overflow: visible;
+  color: var(--color-text-secondary);
+}
+
+.metric-card__spark polyline {
+  stroke: currentColor;
+}
+
+.metric-card__spark circle {
+  fill: var(--color-text-primary);
+}
+
+.metric-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.metric-card--select {
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: box-shadow var(--transition-fast);
+}
+
+.metric-card--select:hover {
+  box-shadow: inset 0 0 0 1px var(--module-accent, var(--color-accent));
+}
+
+.metric-card--select.is-active {
+  box-shadow: inset 0 0 0 2px var(--module-accent, var(--color-accent));
+}
+
+.metric-card--select:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metric-card--select { transition: none; }
+}
+
+.metric-card--inset {
+  background-color: var(--color-fill-well);
+  box-shadow: none;
+}

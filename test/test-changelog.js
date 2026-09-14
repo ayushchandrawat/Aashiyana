@@ -1,0 +1,630 @@
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { execSync, execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import express from 'express';
+import changelogRouter, { buildRouter, __test } from '../server/routes/changelog.js';
+import { compareVersions, isNewerVersion, displayVersion, releasesNewForMe } from '../public/utils/version.js';
+
+test('parseReleaseBody keeps release sections and removes GitHub noise', () => {
+  const sections = __test.parseReleaseBody(`
+## Added
+- New dashboard changelog modal ([#455](https://github.com/AyushChandrawat/Aashiyana/pull/455))
+- Internal commit 9f4a12bc should not leak
+
+## Fixed
+- Better widget sizing
+
+Full Changelog: https://github.com/AyushChandrawat/Aashiyana/compare/v1.0.0...v1.1.0
+Assets
+`);
+
+
+  // zugesagte Oberflaeche, `entries` liegt additiv daneben (#496).
+  assert.deepEqual(sections.map((s) => ({ title: s.title, items: s.items })), [
+    {
+      title: 'Added',
+      items: [
+        'New dashboard changelog modal (#455)',
+        'Internal commit should not leak',
+      ],
+    },
+    {
+      title: 'Fixed',
+      items: ['Better widget sizing'],
+    },
+  ]);
+
+  // Vorspann - erfunden wird keiner.
+  assert.deepEqual(sections[0].entries[0], {
+    lead: 'New dashboard changelog modal (#455)', detail: '',
+  });
+});
+
+test('parseReleaseBody trennt den fettgedruckten Vorspann von der Begruendung', () => {
+
+
+
+
+  const sections = __test.parseReleaseBody(`
+## Fixed
+- **The weather forecast was off by a day** (#851). The server already keeps the
+  running day out of \`forecast\` so it is not shown twice.
+- **A second change** with its own reason.
+`);
+
+  assert.equal(sections.length, 1);
+  const [first, second] = sections[0].entries;
+  assert.equal(first.lead, 'The weather forecast was off by a day');
+  assert.match(first.detail, /^\(#851\)\. The server already keeps/);
+
+  assert.match(first.detail, /shown twice\.$/);
+  assert.equal(second.lead, 'A second change');
+  assert.equal(second.detail, 'with its own reason.');
+
+
+  assert.match(sections[0].items[0], /^The weather forecast was off by a day \(#851\)\./);
+});
+
+test('buildChangelogPayload marks current version when it appears in releases', () => {
+  const payload = __test.buildChangelogPayload([
+    { tag_name: 'v1.2.2', body: '- Newest release', html_url: 'https://example.test/latest' },
+    { tag_name: 'v1.2.1', body: '- Current release', html_url: 'https://example.test/current' },
+  ], '1.2.1');
+
+  assert.equal(payload.current_version, '1.2.1');
+  assert.equal(payload.latest_version, 'v1.2.2');
+  assert.equal(payload.current_in_releases, true);
+  assert.equal(payload.releases.length, 2);
+});
+
+test('buildChangelogPayload reports current version missing from releases', () => {
+  const payload = __test.buildChangelogPayload([
+    { tag_name: 'v0.88.1', body: '- Public release notes' },
+  ], '1.2.1');
+
+  assert.equal(payload.latest_version, 'v0.88.1');
+  assert.equal(payload.current_in_releases, false);
+});
+
+test('changelog router fetches and sanitizes GitHub release JSON', async () => {
+  const app = express();
+  app.use(buildRouter({
+    appVersion: '1.2.1',
+    now: () => 1000,
+    fetchFn: async (url, options) => {
+      assert.match(url, /api\.github\.com\/repos\/AyushChandrawat\/aashiyana\/releases/);
+      assert.equal(options.headers.Accept, 'application/vnd.github+json');
+      return {
+        ok: true,
+        json: async () => [
+          {
+            tag_name: 'v1.2.1',
+            body: '## Added\n- Live changelog\n\nFull Changelog: https://example.test',
+            html_url: 'https://github.com/AyushChandrawat/Aashiyana/releases/tag/v1.2.1',
+          },
+        ],
+      };
+    },
+  }));
+
+  const server = app.listen(0);
+  try {
+    const res = await fetch(`http://127.0.0.1:${server.address().port}/`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.data.current_in_releases, true);
+    assert.equal(body.data.releases[0].sections[0].items[0], 'Live changelog');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+// --------------------------------------------------------
+
+// --------------------------------------------------------
+
+const RELEASES = [
+  { version: 'v2.61.0' }, { version: 'v2.60.0' }, { version: 'v2.59.0' },
+  { version: 'v2.58.0' }, { version: 'v2.57.0' },
+];
+
+test('neu fuer mich sind die Releases zwischen letztem Blick und laufender Version', () => {
+  const fresh = releasesNewForMe(RELEASES, '2.60.0', '2.58.0');
+  assert.deepEqual(fresh.map((r) => r.version), ['v2.60.0', 'v2.59.0']);
+});
+
+test('was hier noch nicht laeuft, steht nicht in der Liste', () => {
+
+
+  // sich davon nichts geaendert.
+  const fresh = releasesNewForMe(RELEASES, '2.60.0', '2.58.0');
+  assert.equal(fresh.some((r) => r.version === 'v2.61.0'), false);
+});
+
+test('ohne frueheren Blick bleibt die Liste leer', () => {
+
+  assert.deepEqual(releasesNewForMe(RELEASES, '2.60.0', ''), []);
+  assert.deepEqual(releasesNewForMe(RELEASES, '', '2.58.0'), []);
+});
+
+test('ist der letzte Blick der laufende Stand, gibt es nichts zu zeigen', () => {
+  assert.deepEqual(releasesNewForMe(RELEASES, '2.60.0', '2.60.0'), []);
+});
+
+test('das v-Praefix der GitHub-Tags stoert die Auswahl nicht', () => {
+  const fresh = releasesNewForMe(RELEASES, 'v2.59.0', 'v2.57.0');
+  assert.deepEqual(fresh.map((r) => r.version), ['v2.59.0', 'v2.58.0']);
+});
+
+test('Releases ohne Version fallen heraus, statt die Liste zu vergiften', () => {
+  const fresh = releasesNewForMe([{ version: '' }, { version: 'v2.59.0' }, {}], '2.60.0', '2.58.0');
+  assert.deepEqual(fresh.map((r) => r.version), ['v2.59.0']);
+});
+
+test('default changelog router is an express router', () => {
+  assert.equal(typeof changelogRouter, 'function');
+});
+
+// --------------------------------------------------------
+
+// --------------------------------------------------------
+
+const SAMPLE_CHANGELOG = `# Changelog
+
+## [Unreleased]
+
+- Etwas, das noch nicht ausgeliefert ist
+
+## [1.2.1] - 2026-01-02
+
+### Fixed
+
+- Ein Fehler weniger
+
+## [1.2.0] - 2026-01-01
+
+### Added
+
+- Ein Modul mehr
+`;
+
+test('parseChangelogFile schneidet Versionsbloecke und laesst Unreleased weg', () => {
+  const releases = __test.parseChangelogFile(SAMPLE_CHANGELOG);
+
+  assert.deepEqual(releases.map((r) => r.version), ['1.2.1', '1.2.0']);
+  assert.equal(releases[0].sections[0].title, 'Fixed');
+  assert.equal(releases[0].sections[0].items[0], 'Ein Fehler weniger');
+
+
+  const alleItems = releases.flatMap((r) => r.sections.flatMap((s) => s.items));
+  assert.equal(alleItems.some((i) => i.includes('noch nicht ausgeliefert')), false);
+});
+
+test('buildLocalPayload meldet keine neueste Version', () => {
+  const payload = __test.buildLocalPayload(() => SAMPLE_CHANGELOG, '1.2.1');
+
+  assert.equal(payload.source, 'local');
+  assert.equal(payload.current_in_releases, true);
+
+
+  assert.equal(payload.latest_version, null);
+});
+
+test('die mitgelieferte CHANGELOG.md laesst sich lesen und parsen', () => {
+  const releases = __test.parseChangelogFile(readFileSync(__test.CHANGELOG_PATH, 'utf8'));
+
+
+
+  // faellt auf nichts zurueck.
+  assert.ok(releases.length >= 10, `zu wenige Versionen geparst (${releases.length})`);
+  assert.ok(releases.every((r) => /^\d+\.\d+\.\d+$/.test(r.version)),
+    'ein Block traegt keine Versionsnummer');
+  assert.ok(releases.every((r) => r.sections.length > 0),
+    'ein Block hat keine Abschnitte');
+});
+
+test('faellt GitHub aus, kommt die mitgelieferte Datei statt 502', async () => {
+  const app = express();
+  app.use(buildRouter({
+    appVersion: '1.2.1',
+    now: () => 1000,
+    fetchFn: async () => { throw new Error('getaddrinfo ENOTFOUND api.github.com'); },
+    readChangelogFile: () => SAMPLE_CHANGELOG,
+  }));
+
+  const server = app.listen(0);
+  try {
+    const res = await fetch(`http://127.0.0.1:${server.address().port}/`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.data.source, 'local');
+    assert.equal(body.data.releases[0].version, '1.2.1');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('ohne mitgelieferte Datei bleibt es beim 502', async () => {
+  const app = express();
+  app.use(buildRouter({
+    appVersion: '1.2.1',
+    now: () => 1000,
+    fetchFn: async () => { throw new Error('offline'); },
+    readChangelogFile: () => { throw new Error('ENOENT'); },
+  }));
+
+  const server = app.listen(0);
+  try {
+    const res = await fetch(`http://127.0.0.1:${server.address().port}/`);
+    assert.equal(res.status, 502);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('nach einem Fehlschlag wird GitHub eine Weile nicht erneut gefragt', async () => {
+  let versuche = 0;
+  let jetzt = 1000;
+  const app = express();
+  app.use(buildRouter({
+    appVersion: '1.2.1',
+    now: () => jetzt,
+    fetchFn: async () => { versuche++; throw new Error('offline'); },
+    readChangelogFile: () => SAMPLE_CHANGELOG,
+  }));
+
+  const server = app.listen(0);
+  const hole = async () => {
+    const res = await fetch(`http://127.0.0.1:${server.address().port}/`);
+    return res.json();
+  };
+  try {
+    await hole();
+    assert.equal(versuche, 1);
+
+
+
+    // aufrecht, statt ihn abzuwarten.
+    jetzt += 60 * 1000;
+    const zweite = await hole();
+    assert.equal(versuche, 1);
+    assert.equal(zweite.data.source, 'local');
+
+
+    jetzt += 5 * 60 * 1000;
+    await hole();
+    assert.equal(versuche, 2);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('.dockerignore laesst CHANGELOG.md ins Image', () => {
+
+
+
+  const raw = readFileSync(new URL('../.dockerignore', import.meta.url), 'utf8');
+  const regeln = raw.split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'));
+
+
+  let ausgeschlossen = false;
+  for (const regel of regeln) {
+    const negiert = regel.startsWith('!');
+    const muster = negiert ? regel.slice(1) : regel;
+    if (muster === 'CHANGELOG.md' || muster === '*.md') ausgeschlossen = !negiert;
+  }
+
+  assert.equal(ausgeschlossen, false,
+    '.dockerignore schliesst CHANGELOG.md aus - der Rueckfall aus #838 waere im Image tot');
+});
+
+// --------------------------------------------------------
+
+// --------------------------------------------------------
+
+test('isNewerVersion compares numeric segments, not strings', () => {
+
+  assert.equal(isNewerVersion('1.10.0', '1.9.0'), true);
+  assert.equal(isNewerVersion('1.9.0', '1.10.0'), false);
+  assert.equal(isNewerVersion('2.0.0', '1.99.99'), true);
+});
+
+test('isNewerVersion tolerates the v prefix of GitHub tags', () => {
+  assert.equal(isNewerVersion('v1.84.0', '1.83.0'), true);
+  assert.equal(isNewerVersion('v1.83.0', '1.83.0'), false);
+  assert.equal(isNewerVersion('1.83.0', 'v1.83.0'), false);
+});
+
+test('isNewerVersion treats missing segments as zero', () => {
+  assert.equal(compareVersions('1.84', '1.84.0'), 0);
+  assert.equal(isNewerVersion('1.84.1', '1.84'), true);
+});
+
+test('isNewerVersion ranks a prerelease below its final release', () => {
+  assert.equal(isNewerVersion('1.84.0-rc.1', '1.84.0'), false);
+  assert.equal(isNewerVersion('1.84.0', '1.84.0-rc.1'), true);
+  assert.equal(isNewerVersion('1.84.0-rc.2', '1.84.0-rc.1'), true);
+});
+
+test('displayVersion drops the tag prefix so the label reads once', () => {
+
+  // "Version v1.84.0".
+  assert.equal(displayVersion('v1.84.0'), '1.84.0');
+  assert.equal(displayVersion('1.84.0'), '1.84.0');
+  assert.equal(displayVersion('  V1.84.0  '), '1.84.0');
+  assert.equal(displayVersion(null), '');
+});
+
+test('unreadable versions never trigger the hint', () => {
+
+
+  assert.equal(compareVersions('latest', '1.83.0'), null);
+  assert.equal(isNewerVersion('latest', '1.83.0'), false);
+  assert.equal(isNewerVersion('1.84.0', ''), false);
+  assert.equal(isNewerVersion('', '1.83.0'), false);
+  assert.equal(isNewerVersion(null, undefined), false);
+});
+
+const TLDR_SINCE = '2.41.0';
+
+test(`jeder Eintrag ab ${TLDR_SINCE} beginnt mit einem fettgedruckten Vorspann`, () => {
+  const text = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8');
+  // Blockweise trennen: '## [x.y.z] - datum' bzw. '## [Unreleased]'.
+  const blocks = text.split(/^## \[/m).slice(1);
+
+  const offenders = [];
+  let checked = 0;
+  for (const block of blocks) {
+    const version = block.slice(0, block.indexOf(']'));
+    const isUnreleased = version.toLowerCase() === 'unreleased';
+    if (!isUnreleased && compareVersions(version, TLDR_SINCE) < 0) continue;
+
+    for (const m of block.matchAll(/^- (.*)$/gm)) {
+      checked += 1;
+      if (!/^\*\*[^*]/.test(m[1])) {
+        offenders.push(`[${version}] - ${m[1].slice(0, 70)}`);
+      }
+    }
+  }
+
+  assert.deepEqual(offenders, [],
+    'ein Eintrag ohne fettgedruckten Vorspann - die erste Zeile muss die Aenderung benennen (#850)');
+
+  void checked;
+});
+
+test('der Vorspann-Guard erkennt einen Eintrag ohne Vorspann', () => {
+
+
+  const hasTldr = (line) => /^\*\*[^*]/.test(line);
+  assert.ok(hasTldr('**Weather forecast was off by a day** (#851). Der Server ...'));
+  assert.equal(hasTldr('The two password-reset pages now say why ...'), false);
+  assert.equal(hasTldr('Updated the dependencies: `googleapis` to 176'), false);
+
+  assert.equal(hasTldr('****'), false);
+});
+
+test('jeder getaggte Release hat einen CHANGELOG-Eintrag, keine Version doppelt', (t) => {
+
+
+
+
+
+
+
+  const repoRoot = fileURLToPath(new URL('..', import.meta.url));
+  let tags;
+  try {
+    tags = execSync('git tag', { cwd: repoRoot, encoding: 'utf8' })
+      .split('\n')
+      .filter((l) => /^v\d+\.\d+\.\d+$/.test(l))
+      .map((l) => l.slice(1));
+  } catch {
+    return t.skip('git nicht verfügbar');
+  }
+  if (tags.length === 0) return t.skip('keine Tags im Checkout (shallow clone)');
+
+  const md = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8');
+  const headings = [...md.matchAll(/^## \[(\d+\.\d+\.\d+)\]/gm)].map((m) => m[1]);
+  const headingSet = new Set(headings);
+
+  const missing = tags.filter((v) => !headingSet.has(v));
+  assert.deepEqual(missing, [],
+    `Getaggte Releases ohne CHANGELOG-Eintrag: ${missing.join(', ')}`);
+
+  const dupes = [...new Set(headings.filter((v, i) => headings.indexOf(v) !== i))];
+  assert.deepEqual(dupes, [],
+    `Versionen mit doppeltem CHANGELOG-Heading: ${dupes.join(', ')}`);
+});
+
+const RELEASED_SECTION_EDITS = {
+
+};
+
+const sectionHash = (section) => createHash('sha256').update(section).digest('hex').slice(0, 12);
+
+
+// Angleich waere jeder Abschnitt ein Fund (PR #1183; test:migrations-append-only ebenso).
+const lf = (text) => text.replace(/\r\n/g, '\n');
+
+
+// `[Unreleased]` faellt heraus, Leerraum am Ende zaehlt nicht.
+function releasedSections(text) {
+  const sections = new Map();
+  for (const part of lf(text).split(/^(?=## \[)/m)) {
+    const m = /^## \[(\d+\.\d+\.\d+)\]/.exec(part);
+    if (m) sections.set(m[1], part.trimEnd());
+  }
+  return sections;
+}
+
+function firstDifference(section, published) {
+  if (section === undefined) return 'im Baum fehlt dieser Abschnitt (geloescht oder Ueberschrift veraendert)';
+  if (published === undefined) return 'am Tag gibt es diesen Abschnitt nicht';
+  const now = section.split('\n');
+  const then = published.split('\n');
+  let i = 0;
+  while (i < now.length && now[i] === then[i]) i += 1;
+  const cut = (line) => (line === undefined ? '(nichts)' : `"${line.slice(0, 80)}"`);
+  return `Zeile ${i + 1}: jetzt ${cut(now[i])}, am Tag ${cut(then[i])}`;
+}
+
+function releasedSectionDrift(headText, referenceText, referenceVersion, edits = {}) {
+  const current = releasedSections(headText);
+  const published = releasedSections(referenceText);
+  const offenders = [];
+  let checked = 0;
+
+
+  for (const version of new Set([...current.keys(), ...published.keys()])) {
+    if (compareVersions(version, referenceVersion) > 0) continue;
+    checked += 1;
+    const section = current.get(version);
+    if (section === published.get(version)) continue;
+    const hash = sectionHash(section ?? '');
+    if (edits[version] === hash) continue;
+    offenders.push({ version, hash, detail: firstDifference(section, published.get(version)) });
+  }
+
+
+
+
+
+  const headings = [...lf(headText).matchAll(/^## \[(\d+\.\d+\.\d+)\]/gm)].map((m) => m[1]);
+  for (let i = 1; i < headings.length; i += 1) {
+    if (compareVersions(headings[i - 1], headings[i]) > 0) continue;
+    offenders.push({ version: headings[i], hash: null,
+      detail: `Reihenfolge: ${headings[i]} steht unter ${headings[i - 1]}, neuere Abschnitte gehoeren nach oben` });
+  }
+  return { offenders, checked };
+}
+
+test('veroeffentlichte CHANGELOG-Abschnitte stehen noch so da wie am Tag', (t) => {
+  const repoRoot = fileURLToPath(new URL('..', import.meta.url));
+  const headText = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8');
+  const newest = [...releasedSections(headText).keys()]
+    .reduce((a, b) => (compareVersions(a, b) >= 0 ? a : b));
+
+  let tags;
+  try {
+    tags = execFileSync('git', ['tag', '--list', 'v*'], { cwd: repoRoot, encoding: 'utf8' })
+      .split('\n')
+      .filter((l) => /^v\d+\.\d+\.\d+$/.test(l))
+      .map((l) => l.slice(1));
+  } catch {
+    return t.skip('git nicht verfügbar');
+  }
+  const referenceVersion = tags
+    .filter((v) => compareVersions(v, newest) <= 0)
+    .sort(compareVersions)
+    .at(-1);
+  if (!referenceVersion) {
+    return t.skip('kein Release-Tag im Checkout (flacher Klon) - ci.yml holt den Tag des neuesten Abschnitts nach');
+  }
+
+  const referenceText = execFileSync('git', ['show', `refs/tags/v${referenceVersion}:CHANGELOG.md`], {
+    cwd: repoRoot, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
+  });
+  const { offenders, checked } = releasedSectionDrift(
+    headText, referenceText, referenceVersion, RELEASED_SECTION_EDITS);
+
+
+  assert.ok(checked >= 10, `nur ${checked} Abschnitte gegen v${referenceVersion} verglichen`);
+  assert.equal(offenders.length, 0, [
+    `Veroeffentlichte CHANGELOG-Abschnitte weichen von v${referenceVersion} ab:`,
+    ...offenders.map((o) => `  [${o.version}] ${o.detail}`),
+    'Ein neuer Eintrag gehoert unter [Unreleased]. Nach einem Rebase auf ein neues Release mischt git',
+    'ihn gern in den gerade veroeffentlichten Abschnitt - dann dorthin zurueckschieben. Ist die Aenderung',
+    'Absicht (ein Nachtrag), den Abschnitt in RELEASED_SECTION_EDITS (test/test-changelog.js) eintragen:',
+    ...offenders.filter((o) => o.hash).map((o) => `  '${o.version}': '${o.hash}',`),
+  ].join('\n'));
+});
+
+test('der Abschnitts-Guard erkennt einen Eintrag im veroeffentlichten Abschnitt', () => {
+
+  const unchanged = releasedSectionDrift(SAMPLE_CHANGELOG, SAMPLE_CHANGELOG, '1.2.1');
+  assert.deepEqual(unchanged, { offenders: [], checked: 2 });
+
+  // [Unreleased] darf wachsen.
+  const unreleased = SAMPLE_CHANGELOG.replace(
+    '- Etwas, das noch nicht ausgeliefert ist\n',
+    '- Etwas, das noch nicht ausgeliefert ist\n- Und noch etwas\n');
+  assert.notEqual(unreleased, SAMPLE_CHANGELOG);
+  assert.deepEqual(releasedSectionDrift(unreleased, SAMPLE_CHANGELOG, '1.2.1').offenders, []);
+
+
+  const moved = SAMPLE_CHANGELOG
+    .replace('- Etwas, das noch nicht ausgeliefert ist\n', '')
+    .replace('- Ein Fehler weniger\n', '- Etwas, das noch nicht ausgeliefert ist\n- Ein Fehler weniger\n');
+  const drift = releasedSectionDrift(moved, SAMPLE_CHANGELOG, '1.2.1');
+  assert.deepEqual(drift.offenders.map((o) => o.version), ['1.2.1']);
+  assert.match(drift.offenders[0].detail, /jetzt "- Etwas, das noch nicht ausgeliefert ist", am Tag "- Ein Fehler weniger"/);
+
+
+  const missing = releasedSectionDrift(SAMPLE_CHANGELOG, SAMPLE_CHANGELOG.replace(/## \[1\.2\.0\][^]*$/, ''), '1.2.1');
+  assert.deepEqual(missing.offenders.map((o) => [o.version, o.detail]),
+    [['1.2.0', 'am Tag gibt es diesen Abschnitt nicht']]);
+
+
+
+  const deleted = SAMPLE_CHANGELOG.replace(/## \[1\.2\.0\][^]*$/, '');
+  assert.notEqual(deleted, SAMPLE_CHANGELOG);
+  assert.deepEqual(releasedSectionDrift(deleted, SAMPLE_CHANGELOG, '1.2.1').offenders.map((o) => [o.version, o.detail]),
+    [['1.2.0', 'im Baum fehlt dieser Abschnitt (geloescht oder Ueberschrift veraendert)']]);
+
+  const renamed = SAMPLE_CHANGELOG.replace('## [1.2.0] - 2026-01-01', '## 1.2.0 - 2026-01-01');
+  assert.notEqual(renamed, SAMPLE_CHANGELOG);
+  assert.deepEqual(releasedSectionDrift(renamed, SAMPLE_CHANGELOG, '1.2.1').offenders.map((o) => o.version), ['1.2.1', '1.2.0']);
+
+
+  const b121 = '## [1.2.1] - 2026-01-02\n\n### Fixed\n\n- Ein Fehler weniger\n';
+  const b120 = '## [1.2.0] - 2026-01-01\n\n### Added\n\n- Ein Modul mehr\n';
+  const swapped = SAMPLE_CHANGELOG.replace(`${b121}\n${b120}`, `${b120}\n${b121}`);
+  assert.notEqual(swapped, SAMPLE_CHANGELOG);
+  assert.deepEqual(releasedSectionDrift(swapped, SAMPLE_CHANGELOG, '1.2.1').offenders.map((o) => [o.version, o.detail]),
+    [['1.2.1', 'Reihenfolge: 1.2.1 steht unter 1.2.0, neuere Abschnitte gehoeren nach oben']]);
+
+
+  // Stelle ist trotzdem falsch.
+  const pendingLow = SAMPLE_CHANGELOG.replace(b120, `## [1.2.2] - 2026-01-03\n\n### Fixed\n\n- Neu\n\n${b120}`);
+  assert.notEqual(pendingLow, SAMPLE_CHANGELOG);
+  assert.deepEqual(releasedSectionDrift(pendingLow, SAMPLE_CHANGELOG, '1.2.1').offenders.map((o) => o.version), ['1.2.2']);
+});
+
+test('der Abschnitts-Guard stolpert nicht ueber CRLF im Arbeitsbaum', () => {
+
+  const crlf = SAMPLE_CHANGELOG.replace(/\n/g, '\r\n');
+  assert.notEqual(crlf, SAMPLE_CHANGELOG);
+  assert.deepEqual(releasedSectionDrift(crlf, SAMPLE_CHANGELOG, '1.2.1'), { offenders: [], checked: 2 });
+});
+
+test('der Release-Commit selbst ist fuer den Abschnitts-Guard kein Fund', () => {
+
+
+
+  const release = SAMPLE_CHANGELOG.replace('## [Unreleased]\n', '## [Unreleased]\n\n## [1.2.2] - 2026-01-03\n');
+  assert.notEqual(release, SAMPLE_CHANGELOG);
+  assert.deepEqual(releasedSectionDrift(release, SAMPLE_CHANGELOG, '1.2.1'), { offenders: [], checked: 2 });
+
+
+  assert.deepEqual(releasedSectionDrift(release, release, '1.2.2').offenders, []);
+});
+
+test('eine eingetragene Aenderung haelt genau ihre Fassung fest', () => {
+  const addendum = SAMPLE_CHANGELOG.replace('- Ein Fehler weniger\n', '- Ein Fehler weniger. *Nachtrag: und warum.*\n');
+  const [found] = releasedSectionDrift(addendum, SAMPLE_CHANGELOG, '1.2.1').offenders;
+  assert.equal(found.version, '1.2.1');
+
+  const edits = { '1.2.1': found.hash };
+  assert.deepEqual(releasedSectionDrift(addendum, SAMPLE_CHANGELOG, '1.2.1', edits).offenders, []);
+
+
+  const again = addendum.replace('- Ein Fehler weniger.', '- Ein Fehler weniger.\n- Noch einer');
+  assert.deepEqual(releasedSectionDrift(again, SAMPLE_CHANGELOG, '1.2.1', edits).offenders.map((o) => o.version), ['1.2.1']);
+});

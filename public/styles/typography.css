@@ -1,0 +1,314 @@
+
+.u-hero,
+.dashboard-hero__title,
+.dashboard-overview__title {
+  font-size: var(--type-hero-mobile);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-tight);
+}
+
+.u-page-title,
+.page__title {
+  font-size: var(--type-page-title-mobile);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-tight);
+}
+
+.sub-tabs-bar__title,
+.page-toolbar__title,
+.page-toolbar__dock-title,
+.settings-leaf-header__title,
+.settings-shell-header__title,
+.split-title {
+  font-size: var(--type-toolbar-title);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-tight);
+  text-wrap: balance;
+}
+
+@media (max-width: 1023px) {
+  .page-toolbar:not(.page-toolbar--in-group) > .page-toolbar__title {
+    font-size: var(--type-page-title-mobile);
+  }
+
+  .page-toolbar--capped.is-collapsed > .page-toolbar__title {
+    font-size: var(--type-toolbar-title);
+  }
+}
+
+@media (max-width: 1023px) and (max-height: 499px) {
+  .page-toolbar:not(.page-toolbar--in-group) > .page-toolbar__title {
+    font-size: var(--type-toolbar-title);
+  }
+}
+
+.u-section-title,
+.budget-page .split-title,
+.budget-chart-section__title,
+.budget-list-header__title,
+.birthdays-toolbar__title,
+.birthdays-section__header h2,
+.list-header__name,
+.loan-report__title,
+.day-view__date-label,
+.today-cockpit__header h2,
+.settings-section__title,
+.settings-navigation-panel__title,
+.settings-mobile-overview__title,
+.split-group-header h2,
+.housekeeping-card h2,
+.subscriptions-chart h2,
+.subscriptions-section-head h2,
+.subscriptions-logo-picker-head h3 {
+  font-size: var(--type-section-title);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--tracking-normal);
+}
+
+.event-icon-picker__category-label,
+.metric-card__label,
+.loan-report__section-title,
+.panel-head__title,
+.contact-group__header,
+.day-header__name,
+.meal-slot__type-label,
+.week-gutter-label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.nav-section-label,
+.settings-shell__navigation-heading,
+.settings-shell__navigation-toggle,
+.kanban-col__title,
+.filter-panel__label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-normal);
+}
+
+/* --------------------------------------------------------------------------
+ * Card-/Item-Titel
+ * ------------------------------------------------------------------------ */
+.u-card-title,
+.agenda-event__title,
+.detail-popover__title,
+.budget-loan-card__title,
+.budget-entry__title,
+.contact-item__name,
+.birthday-item__name,
+.document-card__title,
+.document-row__title,
+.document-viewer__unsupported-title,
+.recipe-card__title,
+.housekeeping-task__body h2,
+.split-card h3,
+.settings-card__title,
+.settings-member__name,
+.settings-provider__name,
+.settings-sync-info__name,
+.widget__title {
+  font-size: var(--type-card-title);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+}
+
+.u-card-title.u-compact,
+.task-item__title,
+.event-item__title,
+.shopping-widget-list__name,
+.note-item__title,
+.note-card__title,
+.documents-folder-item__name,
+.document-dropzone__title,
+.dms-result__title,
+.meal-card__title,
+.housekeeping-section-heading span,
+.subscription-card__name,
+.reminder-section__title,
+.cat-row__name,
+.cat-subrow__name,
+.settings-navigation-group__title {
+  font-size: var(--type-secondary);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+}
+
+.u-body {
+  font-size: var(--type-body);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-base);
+}
+.u-meta {
+  font-size: var(--type-secondary);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-base);
+}
+.u-label {
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+}
+.u-badge {
+  font-size: var(--type-micro);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+}
+.u-section-title.u-compact {
+  font-size: var(--type-card-title);
+}
+
+@media (min-width: 1024px) {
+  .u-hero,
+  .dashboard-hero__title,
+  .dashboard-overview__title {
+    font-size: var(--type-hero-desktop);
+  }
+
+  .u-page-title,
+  .page__title {
+    font-size: var(--type-page-title-desktop);
+  }
+}
+
+.note-md-p {
+  margin: 0 0 var(--space-2);
+}
+
+.note-md-h1,
+.note-md-h2,
+.note-md-h3 {
+  margin: var(--space-2) 0 var(--space-1);
+  line-height: var(--line-height-snug);
+  color: inherit;
+}
+.note-md-h1 { font-size: var(--text-xl);   font-weight: var(--font-weight-bold); }
+.note-md-h2 { font-size: var(--text-lg);   font-weight: var(--font-weight-bold); }
+.note-md-h3 { font-size: var(--text-base); font-weight: var(--font-weight-semibold); }
+
+.note-md-ul,
+.note-md-ol {
+  margin: var(--space-1) 0 var(--space-2);
+  padding-inline-start: 1.4em;
+}
+.note-md-ul { list-style: disc; }
+.note-md-ol { list-style: decimal; }
+.note-md-ul li,
+.note-md-ol li { margin-block: var(--space-0h); }
+
+/* Checkliste: eigene Box statt Listenpunkt */
+.note-md-checklist {
+  list-style: none;
+  padding-inline-start: 0;
+}
+.note-md-check {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.note-md-box {
+  flex: 0 0 auto;
+  position: relative;
+  top: 0.15em;
+  width: 1em;
+  height: 1em;
+  border: 1.5px solid color-mix(in srgb, currentColor 50%, transparent);
+  border-radius: var(--radius-xs);
+}
+button.note-md-box {
+  appearance: none;
+  padding: 0;
+  margin: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+button.note-md-box::before {
+  content: '';
+  position: absolute;
+  inset-block:  -0.25em;
+  inset-inline: calc(var(--space-2) * -1);
+}
+button.note-md-box:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.note-md-check > span:last-child {
+  transition: opacity var(--transition-fast);
+}
+.note-md-check.is-checked > span:last-child {
+  text-decoration: line-through;
+  opacity: 0.65;
+}
+.note-md-check.is-checked .note-md-box {
+  background: color-mix(in srgb, currentColor 70%, transparent);
+  border-color: color-mix(in srgb, currentColor 70%, transparent);
+  animation: check-pop var(--duration-md) var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .note-md-check.is-checked .note-md-box {
+    animation: none;
+  }
+}
+.note-md-check.is-checked .note-md-box::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0.28em;
+  top: 0.02em;
+  width: 0.3em;
+  height: 0.6em;
+  border: solid var(--color-surface);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.note-md-quote {
+  margin: var(--space-1) 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  font-style: italic;
+}
+
+.note-md-hr {
+  margin: var(--space-2) 0;
+  border: none;
+  border-top: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+}
+
+.note-md-code {
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.note-md-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.note-card__content strong,
+.note-item__content strong { font-weight: var(--font-weight-bold); }
+.note-card__content em,
+.note-item__content em { font-style: italic; }
+
+.note-card__content > :first-child,
+.note-item__content > :first-child { margin-top: 0; }
+.note-card__content > :last-child,
+.note-item__content > :last-child { margin-bottom: 0; }

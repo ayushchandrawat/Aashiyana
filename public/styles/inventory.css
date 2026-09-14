@@ -1,0 +1,425 @@
+
+.inventory-page {
+  --module-accent: var(--module-inventory);
+}
+
+.inventory-list {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-bottom: var(--space-8);
+  padding-inline: var(--page-inline-pad);
+}
+
+.inventory-list .metric-grid {
+  max-width: var(--page-measure, var(--layout-reading));
+}
+
+
+.inventory-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  padding-inline: var(--page-inline-pad);
+  padding-block: var(--space-3) 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.inventory-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.inventory-filters[hidden] {
+  display: none;
+}
+
+
+.inventory-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: fit-content;
+  min-height: var(--target-base);
+  margin-bottom: var(--space-2);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.inventory-back-link:hover {
+  color: var(--color-accent);
+}
+
+.inventory-back-link__icon {
+  width: var(--space-4);
+  height: var(--space-4);
+  flex: 0 0 auto;
+}
+
+.inventory-category-title {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-primary);
+}
+
+
+.inventory-photo-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.inventory-photo-editor {
+  width: 84px;
+  height: 84px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--module-accent) var(--tint-surface), var(--color-surface));
+  cursor: pointer;
+}
+
+.inventory-photo-preview__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.inventory-photo-preview__fallback {
+  display: inline-flex;
+  color: color-mix(in srgb, var(--module-accent) var(--tint-ink), var(--color-text-primary));
+}
+
+.inventory-photo-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.inventory-photo-action {
+  width: var(--target-base);
+  height: var(--target-base);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.inventory-photo-action:hover {
+  background: var(--color-surface-hover);
+}
+
+.inventory-photo-action--danger {
+  color: var(--color-danger);
+}
+
+.inventory-detail-photo {
+  display: block;
+  width: 100%;
+  max-width: 240px;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+}
+
+.inventory-row__headline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+}
+
+.inventory-row__value {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+
+.inventory-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.inventory-detail-list__item {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.inventory-detail-list__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-base);
+  color: var(--module-inventory, var(--color-accent));
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.inventory-detail-list__link:hover,
+.inventory-detail-list__link:focus-visible {
+  text-decoration: underline;
+}
+
+.inventory-detail-list__sub {
+  font-size: var(--type-caption);
+  color: var(--color-text-tertiary);
+}
+
+.inventory-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-3);
+}
+
+.inventory-status-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.inventory-status-badge--active   { color: var(--color-success); }
+.inventory-status-badge--sold     { color: var(--color-text-secondary); }
+.inventory-status-badge--disposed,
+.inventory-status-badge--lost     { color: var(--color-danger); }
+
+/* --------------------------------------------------------
+ * Verknuepfte Buchungen (Formular, Bearbeiten-Modus)
+ * -------------------------------------------------------- */
+
+.inventory-linked-entries {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.inventory-linked-entry-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.inventory-linked-entry-row__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.inventory-linked-entry-row__role,
+.inventory-linked-entry-row__date {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.inventory-linked-entry-row__amount {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.inventory-linked-entry-total {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  font-weight: 600;
+  border-top: 1px solid var(--color-border);
+}
+
+.inventory-picked-booking-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border: 1px dashed color-mix(in srgb, var(--module-accent) var(--tint-hint), var(--glass-border-subtle));
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--module-accent) var(--tint-wash), var(--color-surface));
+  font-size: var(--text-sm);
+}
+
+
+.inventory-booking-picker {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: var(--color-overlay-glass);
+}
+
+.inventory-booking-picker__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: min(100%, 460px);
+  max-height: min(80vh, 560px);
+  padding: var(--space-4);
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-glass-card);
+  background-color: var(--glass-bg-card);
+  box-shadow: var(--glass-shadow-lg);
+}
+
+.inventory-booking-picker__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.inventory-booking-picker__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.inventory-booking-picker__list {
+  flex: 1;
+  min-height: 120px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.inventory-booking-picker__list[hidden],
+.inventory-booking-picker__nav[hidden] {
+  display: none;
+}
+
+.inventory-booking-picker__status {
+  margin: auto;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.inventory-booking-picker__item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--target-md);
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-glass-inner);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-size: var(--text-sm);
+}
+
+.inventory-booking-picker__item:hover {
+  background: color-mix(in srgb, var(--module-accent) var(--tint-state), transparent);
+}
+
+.inventory-booking-picker__item:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.inventory-booking-picker__item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.inventory-booking-picker__item-meta {
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+.inventory-booking-picker__item-amount {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.inventory-booking-picker__role-footer {
+  display: flex;
+  justify-content: flex-end;
+  /* Umbruch statt Quetschen - Begruendung an `.modal-panel__footer`
+   * (layout.css, #872). */
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+
+.inventory-warranty-status {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+}
+
+.inventory-warranty-status--valid {
+  color: var(--color-text-secondary);
+}
+
+.inventory-warranty-status--expiring {
+  color: var(--color-warning);
+}
+
+.inventory-warranty-status--expired {
+  color: var(--color-danger);
+}
+
+/* --------------------------------------------------------
+ * Getrackte Fristen (frei definierbare Termine je Gegenstand)
+ * -------------------------------------------------------- */
+
+.inventory-tracked-dates-hint {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.inventory-tracked-dates-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.inventory-tracked-date-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr auto auto auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.inventory-tracked-date-row__countdown {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
