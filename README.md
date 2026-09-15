@@ -1,3 +1,4 @@
+![Aashiyana-Preview](/Aashiyana.png)
 # Aashiyana
 
 **A private, self-hosted household planner.**
