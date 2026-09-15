@@ -1,15 +1,4 @@
 
-
-//
-// Warum: index.html liefert statisch lang="de" aus. Chromium-Browser (z. B. Brave)
-
-
-
-
-
-
-//
-
 (function() {
   var SUPPORTED = ['de', 'en', 'es', 'fr', 'it', 'sv', 'el', 'ru', 'tr', 'zh', 'ja', 'ar', 'hi', 'pt', 'uk', 'pl', 'nl', 'cs', 'vi', 'hu', 'ko', 'id', 'fa'];
   var STORAGE_KEY = 'aashiyana-locale';
@@ -18,7 +7,7 @@
     try {
       var stored = localStorage.getItem(STORAGE_KEY);
       if (stored && SUPPORTED.indexOf(stored) !== -1) return stored;
-    } catch (e) { /* localStorage kann blockiert sein (Privatmodus) */ }
+    } catch (e) { /* localStorage  */ }
 
     var browserLocales = navigator.languages || [navigator.language || ''];
     for (var i = 0; i < browserLocales.length; i++) {

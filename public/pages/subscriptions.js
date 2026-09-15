@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Module: Budget subscriptions
  * Purpose: Recurring subscription tracking, budgeting, analytics, and renewal reminders.
  */
@@ -25,7 +25,7 @@ let state = {
   subscriptions: [],
   summary: null,
   meta: { categories: [], payment_methods: [], billing_cycles: [] },
-  settings: { monthly_budget: 0, base_currency: 'EUR' },
+  settings: { monthly_budget: 0, base_currency: 'INR' },
   rates: null,
   query: '',
   categoryId: '',
@@ -646,7 +646,7 @@ function renderCard(subscription) {
             </span>
           </span>
           <span class="subscription-card__meta">
-            <span><i data-lucide="calendar-clock" aria-hidden="true"></i>${formatDate(subscription.next_payment_date)} · ${dueLabel(subscription)}</span>
+            <span><i data-lucide="calendar-clock" aria-hidden="true"></i>${formatDate(subscription.next_payment_date)} Â· ${dueLabel(subscription)}</span>
             <span><i data-lucide="repeat-2" aria-hidden="true"></i>${cycleLabel(subscription)}</span>
             <span><i data-lucide="wallet-cards" aria-hidden="true"></i>${esc(rowPaymentMethodLabel(subscription))}</span>
             <span><i data-lucide="bell" aria-hidden="true"></i>${t('subscriptions.reminderMeta', { count: subscription.reminder_days })}</span>
@@ -760,7 +760,7 @@ function currencyItems() {
   }
   return CURRENCY_CODES.map((code) => ({
     value: code,
-    label: `${code} · ${names?.of(code) || code}`,
+    label: `${code} Â· ${names?.of(code) || code}`,
   }));
 }
 

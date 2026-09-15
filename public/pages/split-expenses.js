@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Module: Split Expenses
  * Purpose: Mobile-first shared expense groups, balances, settlements, and activity.
  */
@@ -121,7 +121,7 @@ export async function render(container, { user, embedded = false } = {}) {
           </label>
           <!-- Geteilter Umschalter-Baustein des Budget-Moduls statt eigener
                Pillen-Optik, und role="radiogroup" statt role="group": eine
-               Einfachauswahl, die ihren Zustand ansagt und über die geteilte
+               Einfachauswahl, die ihren Zustand ansagt und Ã¼ber die geteilte
                Verhaltensschicht Pfeiltasten mitbringt (Critique 2026-07-30, P1). -->
           <div class="segmented split-status-filter" id="split-status-filter" role="radiogroup" aria-label="${t('splitExpenses.statusLabel')}">
             ${[['active', 'splitExpenses.statusActive'], ['archived', 'splitExpenses.statusArchived']].map(([id, key]) => {
@@ -283,11 +283,11 @@ function renderSummary() {
   setHtml(summary, `
     <div class="metric-card metric-card--positive">
       <div class="metric-card__label">${t('splitExpenses.youAreOwed')}</div>
-      <div class="metric-card__value">${owed.length ? owed.map((r) => money(r.amount, r.currency)).join(' · ') : money(0, state.meta.default_currency)}</div>
+      <div class="metric-card__value">${owed.length ? owed.map((r) => money(r.amount, r.currency)).join(' Â· ') : money(0, state.meta.default_currency)}</div>
     </div>
     <div class="metric-card metric-card--negative">
       <div class="metric-card__label">${t('splitExpenses.youOwe')}</div>
-      <div class="metric-card__value">${owing.length ? owing.map((r) => money(r.amount, r.currency)).join(' · ') : money(0, state.meta.default_currency)}</div>
+      <div class="metric-card__value">${owing.length ? owing.map((r) => money(r.amount, r.currency)).join(' Â· ') : money(0, state.meta.default_currency)}</div>
     </div>
     <div class="metric-card">
       <div class="metric-card__label">${isArchivedView() ? t('splitExpenses.statusArchived') : t('splitExpenses.activeGroups')}</div>
@@ -318,7 +318,7 @@ function renderGroups() {
       <span class="split-group__avatar"><i data-lucide="${groupIcon(group.type)}" aria-hidden="true"></i></span>
       <span class="split-group__body">
         <span class="split-group__name">${esc(group.name)}</span>
-        <span class="split-group__meta">${t(`splitExpenses.groupType.${group.type}`)} · ${group.member_count} ${t('splitExpenses.members')}</span>
+        <span class="split-group__meta">${t(`splitExpenses.groupType.${group.type}`)} Â· ${group.member_count} ${t('splitExpenses.members')}</span>
       </span>
     </button>
   `).join(''));
@@ -450,7 +450,7 @@ function renderExpenses(readOnly = false) {
       <div class="split-expense__icon"><i data-lucide="${categoryIcon(expense.category)}" aria-hidden="true"></i></div>
       <div class="split-expense__body">
         <strong>${esc(expense.title)}</strong>
-        <span>${t('splitExpenses.paidBy')}: ${esc(expense.payer_name || '')} · ${formatDate(expense.expense_date)}${receiptMark}</span>
+        <span>${t('splitExpenses.paidBy')}: ${esc(expense.payer_name || '')} Â· ${formatDate(expense.expense_date)}${receiptMark}</span>
       </div>
       <div class="split-expense__amount">${money(expense.amount, expense.currency)}</div>
     `;
@@ -472,7 +472,7 @@ function renderActivity() {
       <span class="split-activity-dot"></span>
       <div>
         <strong>${esc(t(`splitExpenses.activityType.${item.type}`))}</strong>
-        <span>${esc(item.actor_name || t('splitExpenses.system'))} · ${formatDate(item.created_at.slice(0, 10))}</span>
+        <span>${esc(item.actor_name || t('splitExpenses.system'))} Â· ${formatDate(item.created_at.slice(0, 10))}</span>
       </div>
     </div>
   `).join('');
@@ -550,7 +550,7 @@ function memberCandidateOptions(candidates = []) {
     .filter((candidate) => !candidate.in_group)
     .map((candidate) => {
       const value = candidate.source === 'contact' ? `contact:${candidate.contact_id}` : `user:${candidate.user_id}`;
-      const suffix = candidate.source === 'contact' ? ` · ${t('nav.contacts')}` : '';
+      const suffix = candidate.source === 'contact' ? ` Â· ${t('nav.contacts')}` : '';
       return `<option value="${esc(value)}">${esc(candidate.display_name)}${suffix}</option>`;
     }).join('');
 }
@@ -631,7 +631,7 @@ function updateSplitInputs(panel) {
   const method = panel.querySelector('[name="split_method"]')?.value || 'equal';
 
 
-  const currency = panel.querySelector('[name="currency"]')?.value || state.meta?.default_currency || 'EUR';
+  const currency = panel.querySelector('[name="currency"]')?.value || state.meta?.default_currency || 'INR';
   const zero = amountPlaceholder(currency);
   const amountInput = panel.querySelector('[name="amount"]');
   if (amountInput) amountInput.placeholder = zero;
@@ -802,11 +802,11 @@ function renderGroupMemberEditor(candidates = []) {
       ${candidates.map((candidate) => {
         const key = candidate.source === 'contact' ? `contact:${candidate.contact_id}` : `user:${candidate.user_id}`;
         const locked = candidate.group_role === 'owner';
-        const badge = candidate.source === 'contact' ? ` · ${t('nav.contacts')}` : '';
+        const badge = candidate.source === 'contact' ? ` Â· ${t('nav.contacts')}` : '';
         return `
           <label class="split-check">
             <input type="checkbox" name="group_members" value="${esc(key)}" ${candidate.in_group ? 'checked' : ''} ${locked ? 'disabled' : ''}>
-            <span>${esc(candidate.display_name)}${badge}${candidate.group_role === 'guest' ? ` · ${t('splitExpenses.roleGuest')}` : ''}</span>
+            <span>${esc(candidate.display_name)}${badge}${candidate.group_role === 'guest' ? ` Â· ${t('splitExpenses.roleGuest')}` : ''}</span>
           </label>
         `;
       }).join('')}
@@ -838,7 +838,7 @@ async function syncEditedGroupMembers(group, form) {
 }
 
 async function openGroupModal(group = null) {
-  const currency = state.meta?.default_currency || 'EUR';
+  const currency = state.meta?.default_currency || 'INR';
   const isEdit = Boolean(group);
   const candidates = isEdit ? await loadMemberCandidates() : [];
   openSharedModal({
@@ -981,7 +981,7 @@ function openExpenseModal(expense = null, prefill = null) {
       updateSplitInputs(panel);
       panel.querySelector('#split-delete-expense')?.addEventListener('click', async () => {
 
-        // Betrag, Teilnehmer, Aufteilung und wartende Belege - „Abbrechen" gibt
+        // Betrag, Teilnehmer, Aufteilung und wartende Belege - â€žAbbrechen" gibt
 
         const confirmed = await confirmOverModal(t('splitExpenses.deleteExpenseConfirm'), {
           danger: true,

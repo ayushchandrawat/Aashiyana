@@ -1,4 +1,4 @@
-import {
+﻿import {
   getLocale,
   getSupportedLocales,
   setLocale,
@@ -199,11 +199,11 @@ function renderPage(container, preferences, isAdmin) {
         </div>
       </div>
       <!-- DER WAND-MODUS WOHNT HIER UND NICHT IM ANPASSEN-PANEL.
-           Er ist wie Theme und Sprache GERÄTELOKAL (localStorage) - das
+           Er ist wie Theme und Sprache GERÃ„TELOKAL (localStorage) - das
            Anpassen-Panel schreibt dagegen die haushaltweite Widget-Konfiguration
-           auf den Server. Ein gerätelokaler Schalter dort wäre eine zweite
+           auf den Server. Ein gerÃ¤telokaler Schalter dort wÃ¤re eine zweite
            Speicher-Semantik im selben Panel; und der Anpassen-Modus bearbeitet
-           das Raster, während dieser Schalter eine Betriebsart wählt. -->
+           das Raster, wÃ¤hrend dieser Schalter eine Betriebsart wÃ¤hlt. -->
       <div class="settings-card">
         ${toggleRowHtml({
           label: t('settings.wallModeLabel'),
@@ -226,9 +226,9 @@ function renderPage(container, preferences, isAdmin) {
         </div>
         <div id="locale-error" class="form-error" role="alert" hidden></div>
       </div>
-      <!-- Eigene Karte, nicht angehängt an die Sprachauswahl darüber: als
-           Nachbar im selben Block läse sich der Hinweis wie die Erklärung der
-           Anzeigesprache - und beide sagen etwas Gegensätzliches aus. -->
+      <!-- Eigene Karte, nicht angehÃ¤ngt an die Sprachauswahl darÃ¼ber: als
+           Nachbar im selben Block lÃ¤se sich der Hinweis wie die ErklÃ¤rung der
+           Anzeigesprache - und beide sagen etwas GegensÃ¤tzliches aus. -->
       <div class="settings-card">
         ${isAdmin ? `
         <p class="form-hint" id="data-language-hint">${t('settings.dataLanguageHint')}</p>
@@ -280,9 +280,9 @@ function renderPage(container, preferences, isAdmin) {
         <p class="form-hint">${t('settings.regionAdminOnly')}</p>
       </div>`}
       <!-- Eigene Karte, nicht in den Formatblock darunter: die Zeitzone ist
-           keine Formatierung. Datum und Uhrzeit dort ändern nur, WIE ein Wert
-           dasteht; die Zone ändert, WELCHER Tag "heute" ist, wann Erinnerungen
-           auslösen und mit welcher Uhrzeit ein Termin bei Google ankommt. -->
+           keine Formatierung. Datum und Uhrzeit dort Ã¤ndern nur, WIE ein Wert
+           dasteht; die Zone Ã¤ndert, WELCHER Tag "heute" ist, wann Erinnerungen
+           auslÃ¶sen und mit welcher Uhrzeit ein Termin bei Google ankommt. -->
       <div class="settings-card">
         <h3 class="settings-card__title">${t('settings.timezoneTitle')}</h3>
         ${isAdmin ? `
@@ -647,7 +647,7 @@ export async function render(container, { user }) {
   try {
     const loaded = await getPreferences();
     const preferences = {
-      currency: loaded.currency || 'EUR',
+      currency: loaded.currency || 'INR',
       date_format: loaded.date_format || 'dmy',
       time_format: loaded.time_format || '24h',
       region: loaded.region || null,
@@ -679,3 +679,4 @@ export async function render(container, { user }) {
     });
   }
 }
+

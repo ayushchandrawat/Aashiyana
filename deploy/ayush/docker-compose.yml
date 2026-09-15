@@ -4,15 +4,17 @@ services:
   app_proxy:
     environment:
       APP_HOST: aashiyana_web_1
-      APP_PORT: 3000
+      APP_PORT: 3001
 
   web:
     image: ghcr.io/AyushChandrawat/aashiyana:1.77.0@sha256:726ae06111ac05503162e0c4ffb48402c8039062ee99e0ba5dec6112ac87b15e
     restart: on-failure
     stop_grace_period: 1m
+
     volumes:
       - ${APP_DATA_DIR}/data/app:/data
       - ${APP_DATA_DIR}/data/backups:/backups
+
     environment:
       - NODE_ENV=production
       - PORT=3000

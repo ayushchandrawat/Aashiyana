@@ -1,4 +1,4 @@
-
+﻿
 import { api } from '/api.js';
 import { stagger, vibrate, scheduleUndoableDelete } from '/utils/ux.js';
 import { wireSwipeRows, maybeShowSwipeHint } from '/utils/swipe-row.js';
@@ -43,7 +43,7 @@ const state = {
   activeList:    null,
   categories:    [],   // { id, name, icon, sort_order }[]
   stores:        [],   // verwaltete Laeden fuer den Preis am Artikel (#1003)
-  currency:      'EUR',// Haushaltswaehrung, nur fuer die Preisdarstellung
+  currency:      'INR',// Haushaltswaehrung, nur fuer die Preisdarstellung
   listsError:    null,
   itemsError:    null,
   currentUserId: null,
@@ -73,7 +73,7 @@ function groupItemsByCategory(items) {
 
 
 
-// geteilte Zeile haette „Moabit" und „Neukoelln" dieselbe Klapp-Ansicht
+// geteilte Zeile haette â€žMoabit" und â€žNeukoelln" dieselbe Klapp-Ansicht
 
 // zugeklappt vorgesetzt.
 //
@@ -503,7 +503,7 @@ function renderTabs(container) {
               data-action="switch-list" data-id="${list.id}"
               ${list.item_total > 0 ? `aria-label="${esc(list.name)}, ${esc(t('nav.shoppingOpen', { count: unchecked }))}"` : ''}>
         ${esc(list.name)}
-        ${list.item_total > 0 ? `<span class="list-tab__count" aria-hidden="true">${unchecked > 0 ? unchecked : '✓'}</span>` : ''}
+        ${list.item_total > 0 ? `<span class="list-tab__count" aria-hidden="true">${unchecked > 0 ? unchecked : 'âœ“'}</span>` : ''}
       </button>`;
   }).join('');
 
@@ -780,23 +780,23 @@ function renderListContent(container) {
       </form>
     </div>
 
-    <!-- Die Sammelaktions-Leiste stand hier als statischer Block über der
+    <!-- Die Sammelaktions-Leiste stand hier als statischer Block Ã¼ber der
          Liste. Seit Etappe 5 ist sie eine Pille in der unteren Shell-Zone
          (utils/bulk-pill.js) - der Grund steht dort und an .list-bulkbar in
-         layout.css: 103px Listenfläche für einen einzigen abgehakten Artikel.
-         Die alte Begründung („Geschwister der Liste, nicht Kind: mountItems()
+         layout.css: 103px ListenflÃ¤che fÃ¼r einen einzigen abgehakten Artikel.
+         Die alte BegrÃ¼ndung (â€žGeschwister der Liste, nicht Kind: mountItems()
          leert
-         mehr in dieser Seite hängt, kann von ihrem Rendern nicht getroffen
+         mehr in dieser Seite hÃ¤ngt, kann von ihrem Rendern nicht getroffen
          werden. -->
 
-    <!-- Artikel-Liste; Inhalt via mountItems(), damit der Leerzustand über den
-         geteilten Renderer läuft statt als HTML-String hier drin. -->
+    <!-- Artikel-Liste; Inhalt via mountItems(), damit der Leerzustand Ã¼ber den
+         geteilten Renderer lÃ¤uft statt als HTML-String hier drin. -->
     <div class="list-scroller page-scrollport items-list" id="items-list"></div>
 
-    <!-- Ansage für Umsortierungen (#678), wie im Kategorie-Manager: das
+    <!-- Ansage fÃ¼r Umsortierungen (#678), wie im Kategorie-Manager: das
          aria-label des Griffs allein ist zu leise - ob ein Screenreader die
-         Label-Änderung am fokussierten Element vorliest, ist von Programm zu
-         Programm verschieden. Eine Live-Region ist die verlässliche Zusage. -->
+         Label-Ã„nderung am fokussierten Element vorliest, ist von Programm zu
+         Programm verschieden. Eine Live-Region ist die verlÃ¤ssliche Zusage. -->
     <div class="sr-only" role="status" aria-live="polite" id="items-reorder-announce"></div>
   `);
 
@@ -953,11 +953,11 @@ function renderItem(item) {
              vorher hingen die zwei Buttons als direkte Flex-Kinder in der Zeile,
              wodurch die Bedienzone in jedem Tab anders zusammengesetzt war. -->
         <div class="list-row__actions">
-          <!-- Griff für die Handsortierung (#678). Ein BUTTON, kein role="img"
+          <!-- Griff fÃ¼r die Handsortierung (#678). Ein BUTTON, kein role="img"
                wie im Kategorie-Manager: dort steht daneben ein Auf/Ab-Paar als
-               Tastaturpfad, hier trägt der Griff ihn selbst (Pfeiltasten bei
-               Fokus). Die Einkaufszeile hat schon Abhaken, Details, Löschen und
-               zwei Wischgesten - zwei weitere Knöpfe hätten die Bedienzone auf
+               Tastaturpfad, hier trÃ¤gt der Griff ihn selbst (Pfeiltasten bei
+               Fokus). Die Einkaufszeile hat schon Abhaken, Details, LÃ¶schen und
+               zwei Wischgesten - zwei weitere KnÃ¶pfe hÃ¤tten die Bedienzone auf
                dem Handy zugestellt. -->
           <button class="row-action list-row__drag" data-action="reorder-handle" data-id="${item.id}"
                   aria-label="${t('shopping.reorderHandle', { name: esc(item.name) })}"
@@ -970,7 +970,7 @@ function renderItem(item) {
           </button>
           <button class="row-action row-action--danger" data-action="delete-item" data-id="${item.id}"
                   aria-label="${t('shopping.deleteItemLabel', { name: esc(item.name) })}">
-            ${/* trash-2 statt x: das Kreuz heisst app-weit „Schliessen"
+            ${/* trash-2 statt x: das Kreuz heisst app-weit â€žSchliessen"
                  (Modals, Chips), Loeschen traegt ueberall den Papierkorb
                  (Aufgaben, Geburtstage, Mahlzeiten). Der Einkauf war die eine
                  Zeile, die fuer dieselbe Tat ein anderes Zeichen sprach
@@ -1191,7 +1191,7 @@ function wireQuickAdd(container) {
 let itemSortables = [];
 
 function destroyItemSortables() {
-  itemSortables.forEach((inst) => { try { inst.destroy(); } catch { /* schon abgeräumt */ } });
+  itemSortables.forEach((inst) => { try { inst.destroy(); } catch { /* schon abgerÃ¤umt */ } });
   itemSortables = [];
 }
 
@@ -2009,8 +2009,8 @@ function openMealPlanImport(container) {
         <div class="modal-actions">
           <button type="button" class="btn btn--secondary" id="shopping-import-cancel">${t('common.cancel')}</button>
           <!-- Startet deaktiviert und wird von updatePreview() freigeschaltet, sobald
-               der Zeitraum Zutaten enthaelt. Die Schwesteraktion „Plan zufaellig
-               fuellen" macht das seit dem Audit korrekt; hier blieb „Uebernehmen"
+               der Zeitraum Zutaten enthaelt. Die Schwesteraktion â€žPlan zufaellig
+               fuellen" macht das seit dem Audit korrekt; hier blieb â€žUebernehmen"
                bei 0 Treffern klickbar und quittierte mit einem Info-Toast, dass
                nichts passiert ist (Critique 2026-07-30, P2). -->
           <button type="submit" class="btn btn--primary" id="shopping-import-submit" disabled>${t('common.apply')}</button>
@@ -2132,7 +2132,7 @@ async function loadStores() {
   }
   try {
     const prefs    = await api.get('/preferences');
-    state.currency = prefs.data?.currency ?? 'EUR';
+    state.currency = prefs.data?.currency ?? 'INR';
   } catch { /* EUR bleibt */ }
 }
 
@@ -2223,7 +2223,7 @@ async function switchList(listId, container) {
   state.collapsedCategories = loadCollapsedCategories(state.currentUserId, listId);
   renderTabs(container);
 
-  // Screenreadern „busy" — bis renderListContent den neuen Inhalt setzt.
+  // Screenreadern â€žbusy" â€” bis renderListContent den neuen Inhalt setzt.
   container.querySelector('#list-content')?.setAttribute('aria-busy', 'true');
   try {
     await loadItems(listId);
@@ -2818,7 +2818,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
   findPageFab('fab-new-item')?.addEventListener('click', (e) => {
     const input = container.querySelector('#item-name-input');
     if (!input) {
-      // Keine Liste aktiv → neue Liste erstellen
+      // Keine Liste aktiv â†’ neue Liste erstellen
       container.querySelector('[data-action="new-list"]')?.click();
       return;
     }
@@ -2928,3 +2928,4 @@ export const __test = {
   getLiveFeedForTest: () => _liveFeed,
   abortLiveUpdatesForTest: () => { _liveController?.abort(); _liveController = null; _liveFeed = null; },
 };
+

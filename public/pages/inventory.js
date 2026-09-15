@@ -1,4 +1,4 @@
-
+﻿
 import { api } from '/api.js';
 import { t } from '/i18n.js';
 import { esc } from '/utils/html.js';
@@ -26,7 +26,7 @@ import { setNavBadge } from '/utils/nav-badges.js';
 
 let _container = null;
 let _search = null;
-let _householdCurrency = 'EUR';
+let _householdCurrency = 'INR';
 
 const state = {
   items: [],
@@ -523,7 +523,7 @@ function renderCategoryDetail(list) {
       variant: 'no-results',
       title: t('inventory.noResultsTitle'),
       description: t('inventory.noResultsDescription'),
-      hint: active.length ? active.join(' · ') : undefined,
+      hint: active.length ? active.join(' Â· ') : undefined,
       action: {
         label: t('inventory.resetSearch'),
         onClick: () => {
@@ -607,7 +607,7 @@ function trackedDateDetailEntries(item) {
       ? t('inventory.trackedDateOverdueDays', { count: Math.abs(status.days) })
       : status.days === 0 ? t('inventory.trackedDateDueToday')
       : t('inventory.trackedDateInDays', { count: status.days });
-    return { text: d.label, sub: countdown ? `${formatDate(d.date)} · ${countdown}` : formatDate(d.date) };
+    return { text: d.label, sub: countdown ? `${formatDate(d.date)} Â· ${countdown}` : formatDate(d.date) };
   });
 }
 
@@ -622,8 +622,8 @@ function photoDetailNode(photoData) {
 
 function renderItemDetail(item) {
   const bookingEntries = (item.linked_entries || []).map((link) => ({
-    text: `${link.title} · ${formatMoney(link.amount, _householdCurrency)}`,
-    sub: `${roleLabel(link.role)} · ${formatDate(link.date)}`,
+    text: `${link.title} Â· ${formatMoney(link.amount, _householdCurrency)}`,
+    sub: `${roleLabel(link.role)} Â· ${formatDate(link.date)}`,
   }));
   const attachmentEntries = (item.attachments || []).map((doc) => ({
     text: doc.name || doc.original_name || '',
@@ -1038,7 +1038,7 @@ function buildItemForm({ mode, item = null }) {
   for (const root of state.locations) {
     locationOptions.push(`<option value="${root.id}">${esc(root.name)}</option>`);
     for (const child of root.subcategories || []) {
-      locationOptions.push(`<option value="${child.id}">${esc(root.name)} · ${esc(child.name)}</option>`);
+      locationOptions.push(`<option value="${child.id}">${esc(root.name)} Â· ${esc(child.name)}</option>`);
     }
   }
   const conditionOptions = CONDITIONS.map((c) => `<option value="${c}">${esc(t(`inventory.condition${c.charAt(0).toUpperCase()}${c.slice(1)}`))}</option>`).join('');
@@ -1486,7 +1486,7 @@ export async function render(container) {
       loadLocations(),
       loadCategories(),
       loadItems(),
-      api.get('/preferences').then((res) => { _householdCurrency = res.data?.currency ?? 'EUR'; }).catch(() => {}),
+      api.get('/preferences').then((res) => { _householdCurrency = res.data?.currency ?? 'INR'; }).catch(() => {}),
     ]);
     renderList();
     updateAttentionBadge();
@@ -1501,3 +1501,4 @@ export const __test = {
   itemCategoryLabel,
   categoryOptionsHtml,
 };
+

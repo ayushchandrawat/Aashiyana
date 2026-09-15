@@ -1,4 +1,4 @@
-
+﻿
 import { api } from '/api.js';
 import { t, formatDate, formatTime, getLocale, getNumberFormat } from '/i18n.js';
 import { esc } from '/utils/html.js';
@@ -48,7 +48,7 @@ let state = {
   selectedStaffId: null,
   staffLogMonth: localDate().slice(0, 7),
   staffVisits: [],
-  currency: 'EUR',
+  currency: 'INR',
 };
 
 function money(value) {
@@ -153,7 +153,7 @@ async function loadData() {
   state.templates = templates.data || [];
   state.workers = workers.data || [];
   state.worker = state.workers[0] || null;
-  state.currency = prefs.data?.currency ?? 'EUR';
+  state.currency = prefs.data?.currency ?? 'INR';
 }
 
 function renderTabButton(tab, icon, label) {
@@ -170,7 +170,7 @@ function renderTabButton(tab, icon, label) {
 
 
 
-// keine Erstellen-Aktion → FAB dort ausgeblendet.
+// keine Erstellen-Aktion â†’ FAB dort ausgeblendet.
 let fab = null;
 
 function updateHousekeepingFab() {
@@ -291,7 +291,7 @@ function renderWorkerSummary() {
       </div>
       <div class="housekeeping-worker-strip__identity">
         <strong>${esc(worker.display_name)}</strong>
-        <span>${esc(session ? `${t('housekeeping.visitRecordedAt')} ${formatTime(session.check_in)}` : (worker.rate_type === 'hourly' ? `${money(worker.hourly_rate)}/${t('housekeeping.rateHourly')}` : `${money(worker.daily_rate)} · ${scheduleLabel(worker.payment_schedule)}`))}</span>
+        <span>${esc(session ? `${t('housekeeping.visitRecordedAt')} ${formatTime(session.check_in)}` : (worker.rate_type === 'hourly' ? `${money(worker.hourly_rate)}/${t('housekeeping.rateHourly')}` : `${money(worker.daily_rate)} Â· ${scheduleLabel(worker.payment_schedule)}`))}</span>
       </div>
       <button class="btn ${checkedIn ? 'btn--secondary' : 'btn--primary'} housekeeping-check-small" type="button"
               data-worker-check="${worker.id}">
@@ -353,7 +353,7 @@ function renderDashboard(content) {
     <article class="list-row housekeeping-staff-log-row">
       <div class="list-row__main">
         <div class="list-row__name">${esc(formatDate(visit.check_in))}</div>
-        <div class="list-row__meta">${esc(visit.worker_name || t('housekeeping.staff'))} · ${esc(money(visit.total_amount))} · ${esc(visitPaymentMeta(visit))}</div>
+        <div class="list-row__meta">${esc(visit.worker_name || t('housekeeping.staff'))} Â· ${esc(money(visit.total_amount))} Â· ${esc(visitPaymentMeta(visit))}</div>
       </div>
       <div class="list-row__actions">
         ${visitEditActionHtml(visit, formatDate(visit.check_in))}
@@ -434,7 +434,7 @@ function renderTasks(content) {
   const templateButtons = state.templates.map((template, index) => `
     <button class="housekeeping-template" type="button" data-template-index="${index}">
       <span>${esc(templateLabel(template, 'name'))}</span>
-      <small>${esc(templateLabel(template, 'area'))} · ${esc(t('housekeeping.everyDays', { days: template.frequency_days }))}</small>
+      <small>${esc(templateLabel(template, 'area'))} Â· ${esc(t('housekeeping.everyDays', { days: template.frequency_days }))}</small>
     </button>
   `).join('');
   const taskRows = state.tasks.map((task) => `
@@ -445,7 +445,7 @@ function renderTasks(content) {
       </button>
       <div class="housekeeping-task__body">
         <h2>${esc(task.name)}</h2>
-        <p>${esc(task.area)} · ${esc(t('housekeeping.everyDays', { days: task.frequency_days }))}</p>
+        <p>${esc(task.area)} Â· ${esc(t('housekeeping.everyDays', { days: task.frequency_days }))}</p>
         <span>${esc(urgencyLabel(task.urgency_status))}</span>
       </div>
       <div class="housekeeping-task__actions row-actions">
@@ -638,7 +638,7 @@ function visitDeleteActionHtml(visit, visitDate) {
 function visitPaymentMeta(visit) {
   if (!visit.paid_at) return t('housekeeping.paymentPending');
   if (visit.can_edit) return t('housekeeping.paymentPaid');
-  return `${t('housekeeping.paymentPaid')} · ${t('housekeeping.settledAdminOnly')}`;
+  return `${t('housekeeping.paymentPaid')} Â· ${t('housekeeping.settledAdminOnly')}`;
 }
 
 function currentMonthKey() {
@@ -741,7 +741,7 @@ function renderReports(content) {
       </div>
       <div>
         <strong>${esc(visit.worker_name || t('housekeeping.staff'))}</strong>
-        <span>${esc(formatDate(visit.check_in))} · ${esc(money(visit.total_amount))} · ${esc(paid ? t('housekeeping.paymentPaid') : t('housekeeping.paymentPending'))}</span>
+        <span>${esc(formatDate(visit.check_in))} Â· ${esc(money(visit.total_amount))} Â· ${esc(paid ? t('housekeeping.paymentPaid') : t('housekeeping.paymentPending'))}</span>
       </div>
       ${!visit.can_mark_paid ? '' : `
       <button class="btn btn--secondary" type="button" data-pay-report="${visit.id}">
@@ -841,7 +841,7 @@ function openVisitReportModal(visit, content = null, { onRefresh = null } = {}) 
           </div>
         </div>
         <dl class="housekeeping-report-details">
-          <div><dt>${esc(t('housekeeping.lastVisit'))}</dt><dd>${esc(formatDate(visit.check_in))} · ${esc(formatTime(visit.check_in))}</dd></div>
+          <div><dt>${esc(t('housekeeping.lastVisit'))}</dt><dd>${esc(formatDate(visit.check_in))} Â· ${esc(formatTime(visit.check_in))}</dd></div>
           <div><dt>${esc(t('housekeeping.dailyRate'))}</dt><dd>${esc(money(visit.daily_rate))}</dd></div>
           <div><dt>${esc(t('housekeeping.extras'))}</dt><dd>${esc(money(visit.extras))}</dd></div>
           <div><dt>${esc(t('housekeeping.totalPayment'))}</dt><dd>${esc(money(visit.total_amount))}</dd></div>
@@ -1000,7 +1000,7 @@ function renderStaffVisitLog() {
       <article class="list-row housekeeping-staff-log-row">
         <div class="list-row__main">
           <div class="list-row__name">${esc(visitDate)}</div>
-          <div class="list-row__meta">${esc(money(visit.total_amount))} · ${esc(visitPaymentMeta(visit))}</div>
+          <div class="list-row__meta">${esc(money(visit.total_amount))} Â· ${esc(visitPaymentMeta(visit))}</div>
         </div>
         <div class="list-row__actions">
           <button class="row-action" type="button" data-pay-visit="${visit.id}" ${visit.can_mark_paid ? '' : 'disabled'}
@@ -1215,7 +1215,7 @@ function openVisitEditModal(visit, content, { onDone } = {}) {
       const mins = Math.max(0, Number(minutesInput.value) || 0);
       const rounded = Math.round(mins / 15) * 15;
       const amount = (rounded / 60) * (Number(visit.hourly_rate) || 0);
-      const fmt = getNumberFormat({ style: 'currency', currency: state.currency || 'EUR' });
+      const fmt = getNumberFormat({ style: 'currency', currency: state.currency || 'INR' });
       computedOutput.textContent = fmt.format(amount);
     }
     minutesInput?.addEventListener('input', updateComputed);
@@ -1551,3 +1551,4 @@ export const __test = {
   visitPaymentMeta,
   state: () => state,
 };
+

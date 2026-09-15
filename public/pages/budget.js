@@ -1,4 +1,4 @@
-
+﻿
 import { api } from '/api.js';
 import { openModal as openSharedModal, closeModal, confirmOverModal, advancedSection, wireBlurValidation, reportFieldError, refocusAfterRender } from '/components/modal.js';
 import { renderDocumentAttachField, bindDocumentAttachField } from '/components/document-attach.js';
@@ -197,13 +197,13 @@ let state = {
   activeTab:   'budget',
   loanFilterId: null,
   loanStatusFilter: 'active',
-  currency:    'EUR',
+  currency:    'INR',
   budgetMode:  'shared',      // 'shared' (Altverhalten) | 'personal' (#476/#505)
   members:     [],            // Haushaltsmitglieder fuer den Zustaendigen-Picker (#1057)
   responsibleFilterId: null,  // aktiver Zustaendigen-Filter der Liste (#1057)
   groupByResponsible: false,  // Liste nach Zustaendigem gruppieren (#1057)
   scope:       'mine',        // Ansichts-Filter im personal-Modus: 'mine' | 'household'
-  expensesOnly: false,        // Anzeige „Nur Ausgaben" (#504): Einnahmen+Saldo ausblenden
+  expensesOnly: false,        // Anzeige â€žNur Ausgaben" (#504): Einnahmen+Saldo ausblenden
   meta:        { expenseCategories: [], incomeCategories: [], subcategories: {} },
 
 
@@ -383,7 +383,7 @@ async function loadAccounts() {
   try {
 
 
-    // den optionalen „Archivierte anzeigen"-Modus. net_worth ignoriert archivierte
+    // den optionalen â€žArchivierte anzeigen"-Modus. net_worth ignoriert archivierte
     // serverseitig; die Kachel-Liste filtert clientseitig.
     const res = await api.get('/budget/accounts?include_archived=1');
     state.accounts = res.data?.accounts ?? [];
@@ -436,7 +436,7 @@ export async function render(container, { user }) {
         api.get('/auth/users').catch(() => ({ data: [] })),
         loadBudgetMeta(),
       ]);
-      state.currency = prefsRes.data?.currency ?? 'EUR';
+      state.currency = prefsRes.data?.currency ?? 'INR';
       state.budgetMode = prefsRes.data?.budget_mode === 'personal' ? 'personal' : 'shared';
       state.members = Array.isArray(usersRes.data) ? usersRes.data : (usersRes.data?.users ?? []);
     } catch (_) { /* Fallback auf EUR */ }
@@ -449,7 +449,7 @@ export async function render(container, { user }) {
       <div class="page-toolbar page-toolbar--wrap page-toolbar--narrow budget-nav">
         <h1 class="page-toolbar__title">${t('budget.title')}</h1>
         <!-- Der Kopf-Slot bleibt auf jedem Tab besetzt: entweder Stepper oder
-             ein ruhiger Kontexttext. Eine Lücke machte jeden Tabwechsel zur
+             ein ruhiger Kontexttext. Eine LÃ¼cke machte jeden Tabwechsel zur
              Neuorientierung (Critique 2026-07-30, P1). -->
         <div class="page-toolbar__center budget-nav__month">
           <button class="btn btn--icon" id="budget-prev" aria-label="${t('budget.prevMonth')}">
@@ -459,7 +459,7 @@ export async function render(container, { user }) {
           <button class="btn btn--icon" id="budget-next" aria-label="${t('budget.nextMonth')}">
             <i data-lucide="chevron-right" aria-hidden="true"></i>
           </button>
-          <!-- „Aktuell" ist ein Reset, kein Navigationsschritt: hinter dem
+          <!-- â€žAktuell" ist ein Reset, kein Navigationsschritt: hinter dem
                Stepper statt zwischen Pfeil und Wert. -->
           <button class="btn btn--secondary budget-nav__today" id="budget-today">${t('budget.currentMonth')}</button>
           <span class="budget-nav__note" id="budget-period-note" hidden></span>
@@ -566,7 +566,7 @@ function wireNav() {
       renderBody();
     },
   });
-  // Neu-Aktion je Tab — spiegelt TAB_CAPS.add. Tabs ohne Neu-Aktion (Berichte,
+  // Neu-Aktion je Tab â€” spiegelt TAB_CAPS.add. Tabs ohne Neu-Aktion (Berichte,
 
 
   const addHandler = () => {
@@ -670,7 +670,7 @@ function renderBody() {
 
 
       onPeriod: ({ from, to }) => {
-        state.reportPeriod = `${formatDate(from)} – ${formatDate(to)}`;
+        state.reportPeriod = `${formatDate(from)} â€“ ${formatDate(to)}`;
         if (state.activeTab === 'reports' && state.range === 'week') updateLabel();
       },
     }).catch((err) => console.error('[Budget] stats render error:', err));
@@ -1083,7 +1083,7 @@ function entryRows(list) {
     const categoryMeta = categoryLabel(e.category);
     const acctName = accountName(e.account_id);
     const acctMeta = acctName
-      ? `<span class="budget-entry__account"> · <i data-lucide="wallet" class="icon-sm" aria-hidden="true"></i>${esc(acctName)}</span>`
+      ? `<span class="budget-entry__account"> Â· <i data-lucide="wallet" class="icon-sm" aria-hidden="true"></i>${esc(acctName)}</span>`
       : '';
 
     const sharedBadge = (state.budgetMode === 'personal' && e.visibility === 'shared')
@@ -1130,7 +1130,7 @@ function entryRows(list) {
 
     // wer sich darum kuemmert, gehoert dazu (#659).
     const responsibleMark = (!masked && (e.responsible_users?.length))
-      ? ` · <button type="button" class="budget-responsible-chip" data-responsible="${e.responsible_users[0].id}"
+      ? ` Â· <button type="button" class="budget-responsible-chip" data-responsible="${e.responsible_users[0].id}"
              aria-label="${esc(t('budget.responsibleFilterTo', { name: e.responsible_users[0].display_name ?? '' }))}"
            >${renderAvatarStack(e.responsible_users, { size: 16, maxVisible: 3 })}</button>`
       : '';
@@ -1145,7 +1145,7 @@ function entryRows(list) {
         <div class="budget-entry__indicator ${indClass}"></div>
         <div class="list-row__main">
           ${titleCell}
-          <div class="list-row__meta budget-entry__meta">${date} · ${esc(categoryMeta)}${acctMeta}${recurTag}${receiptMark}${responsibleMark}</div>
+          <div class="list-row__meta budget-entry__meta">${date} Â· ${esc(categoryMeta)}${acctMeta}${recurTag}${receiptMark}${responsibleMark}</div>
         </div>
         <div class="budget-entry__amount ${amtClass}">${amountText}</div>
         <div class="list-row__actions">${rowActions}
@@ -1215,12 +1215,12 @@ function renderAccountsPage() {
       ? `<span class="budget-account__meta">${[
           a.credit_bank ? esc(a.credit_bank) : '',
           a.available_limit != null ? `${t('budget.availableLimitShort')} ${formatAmount(a.available_limit)}` : '',
-        ].filter(Boolean).join(' · ')}</span>`
+        ].filter(Boolean).join(' Â· ')}</span>`
       : '';
     return `
       <div class="budget-account ${a.archived ? 'budget-account--archived' : ''}" style="--account-accent:${accountAccent(a.color)}">
         <button class="budget-account__main" type="button" data-drill="${a.id}"
-                aria-label="${t('budget.viewAccountTransactions', { name: a.name })} · ${t('budget.currentBalance')} ${formatAmount(a.current_balance)}">
+                aria-label="${t('budget.viewAccountTransactions', { name: a.name })} Â· ${t('budget.currentBalance')} ${formatAmount(a.current_balance)}">
           <span class="budget-account__icon"><i data-lucide="${icon}" class="icon-md" aria-hidden="true"></i></span>
           <span class="budget-account__body">
             <span class="budget-account__name"><span class="budget-account__name-text">${esc(a.name)}</span>${archivedBadge}</span>
@@ -1327,7 +1327,7 @@ function openAccountModal(account = null) {
       </div>
       <div class="form-group">
         <label class="form-label" for="am-credit-limit">${t('budget.creditLimitLabel')}</label>
-        <!-- Schrittweite und Platzhalter aus der Kontowährung: bei JPY ist ein
+        <!-- Schrittweite und Platzhalter aus der KontowÃ¤hrung: bei JPY ist ein
              Hundertstel keine Einheit, die es gibt. min bleibt 0 - ein Rahmen
              ist nie negativ, und leer heisst "kein Rahmen gepflegt". -->
         <input type="number" class="form-input" id="am-credit-limit" min="0" inputmode="decimal"
@@ -1395,7 +1395,7 @@ function openAccountModal(account = null) {
       });
 
       panel.querySelector('#am-delete')?.addEventListener('click', async () => {
-        // confirmOverModal statt confirmModal: „Abbrechen" gibt das Konto-Modal
+        // confirmOverModal statt confirmModal: â€žAbbrechen" gibt das Konto-Modal
 
 
         const ok = await confirmOverModal(
@@ -1440,7 +1440,7 @@ function openAccountModal(account = null) {
         }
 
         saveBtn.disabled = true;
-        saveBtn.textContent = '…';
+        saveBtn.textContent = 'â€¦';
         try {
           const body = { name, type, starting_balance: startingBalance, color: selectedColor || null };
 
@@ -1490,7 +1490,7 @@ function renderLoansDashboard() {
           <button class="btn btn--secondary btn--sm" type="button" id="budget-clear-loan-filter">
             <i data-lucide="x" aria-hidden="true"></i>${t('budget.clearLoanFilter')}
           </button>` : ''}
-          <!-- Einfachauswahl, keine Sicht: role="radiogroup" statt des früheren
+          <!-- Einfachauswahl, keine Sicht: role="radiogroup" statt des frÃ¼heren
                role="group", damit der Zustand angesagt wird UND die geteilte
                Verhaltensschicht Pfeiltasten liefert (Critique 2026-07-30, P1). -->
           <div class="segmented budget-loans__filters" role="radiogroup" aria-label="${t('budget.loanStatusFilterLabel')}">
@@ -1504,8 +1504,8 @@ function renderLoansDashboard() {
           </div>
         </div>
       </div>
-      <!-- Geteilte Kennzahl-Zeile statt der früheren eigenen budget-loans__stats
-           (fünfte Kartenbauart des Moduls, Critique 2026-07-30, P0). Rolle
+      <!-- Geteilte Kennzahl-Zeile statt der frÃ¼heren eigenen budget-loans__stats
+           (fÃ¼nfte Kartenbauart des Moduls, Critique 2026-07-30, P0). Rolle
            total: die Richtung steht im Label, nicht im Vorzeichen. -->
       <div class="metric-grid">
         <div class="metric-card">
@@ -1595,7 +1595,7 @@ function loanPaymentToEntry(loan, payment) {
 
 function renderLoanPaymentEntry(loan, payment) {
   const entry = loanPaymentToEntry(loan, payment);
-  const meta = `${formatEntryDate(payment.paid_date)} · ${esc(loan.title)} · ${t('budget.loanInstallmentNumber', {
+  const meta = `${formatEntryDate(payment.paid_date)} Â· ${esc(loan.title)} Â· ${t('budget.loanInstallmentNumber', {
     number: payment.installment_number,
     total: loan.installment_count,
   })}`;
@@ -1805,7 +1805,7 @@ function openLoanReport(loan) {
 
 
 function formatRate(r) {
-  return `${getNumberFormat({ maximumFractionDigits: 2 }).format(Number(r))} %`;
+  return `${getNumberFormat({ maximumFractionDigits: 2 }).format(Number(r))}Â %`;
 }
 
 
@@ -1828,7 +1828,7 @@ function loanInterestMeta(it, loan) {
   } else {
     phase = t('budget.loanRateFixed', { rate: formatRate(it.fixed_rate) });
   }
-  return `${monthly} · ${phase}`;
+  return `${monthly} Â· ${phase}`;
 }
 
 function renderLoanCard(loan) {
@@ -1860,7 +1860,7 @@ function renderLoanCard(loan) {
         </div>
         <div class="budget-loan-card__meta">${t(isBorrowedLoan(loan)
           ? 'budget.loanDirectionBorrowedBadge'
-          : 'budget.loanDirectionLentBadge')} · ${esc(loan.borrower)} · ${t('budget.loanInstallmentMeta', {
+          : 'budget.loanDirectionLentBadge')} Â· ${esc(loan.borrower)} Â· ${t('budget.loanInstallmentMeta', {
           paid: loan.paid_installments,
           total: loan.installment_count,
         })}</div>
@@ -2406,7 +2406,7 @@ function openBudgetModal({ mode, entry = null, initialType = '' }) {
         const amount = currentType === 'expense' ? -absVal : absVal;
 
         saveBtn.disabled    = true;
-        saveBtn.textContent = '…';
+        saveBtn.textContent = 'â€¦';
 
         try {
           const body = {
@@ -2950,7 +2950,7 @@ async function saveLoanFromPanel(panel, saveBtn, { loan = null, closeAfterSave =
   if (accountSel) body.account_id = accountSel.value === '' ? null : parseInt(accountSel.value, 10);
 
   saveBtn.disabled = true;
-  saveBtn.textContent = '…';
+  saveBtn.textContent = 'â€¦';
   try {
     if (isEdit) {
       await api.put(`/budget/loans/${loan.id}`, body);
@@ -3081,7 +3081,7 @@ async function deleteLoan(id) {
     message: t('budget.loanDeletedToast'),
     commit: async ({ keepalive }) => {
       await api.delete(`/budget/loans/${id}`, { keepalive });
-      if (keepalive) return; // Seite verschwindet — kein UI-Refresh mehr
+      if (keepalive) return; // Seite verschwindet â€” kein UI-Refresh mehr
       await loadMonth(state.month);
       renderBody();
     },
@@ -3106,7 +3106,7 @@ async function deleteLoanPayment(loanId, paymentId) {
     message: t('budget.deletedToast'),
     commit: async ({ keepalive }) => {
       await api.delete(`/budget/loans/${loanId}/payments/${paymentId}`, { keepalive });
-      if (keepalive) return; // Seite verschwindet — kein UI-Refresh mehr
+      if (keepalive) return; // Seite verschwindet â€” kein UI-Refresh mehr
       await loadMonth(state.month);
       renderBody();
     },
@@ -3200,7 +3200,7 @@ async function deleteEntry(id) {
     message: t('budget.deletedToast'),
     commit: async ({ keepalive }) => {
       await api.delete(`/budget/${id}`, { keepalive });
-      if (keepalive) return; // Seite verschwindet — kein UI-Refresh mehr
+      if (keepalive) return; // Seite verschwindet â€” kein UI-Refresh mehr
       await loadMonth(state.month);
       renderBody();
     },
@@ -3258,7 +3258,7 @@ async function deleteEntrySeries(id) {
     message: t('budget.recurringSeriesDeleted'),
     commit: async ({ keepalive }) => {
       await api.delete(`/budget/${id}/series`, { keepalive });
-      if (keepalive) return; // Seite verschwindet — kein UI-Refresh mehr
+      if (keepalive) return; // Seite verschwindet â€” kein UI-Refresh mehr
       await loadMonth(state.month);
       renderBody();
     },
@@ -3272,3 +3272,4 @@ async function deleteEntrySeries(id) {
     },
   });
 }
+

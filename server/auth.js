@@ -1,4 +1,4 @@
-
+﻿
 import express from 'express';
 import session from 'express-session';
 import rateLimit from 'express-rate-limit';
@@ -166,7 +166,7 @@ if (process.env.SESSION_SECRET.startsWith('REPLACE_WITH_')) {
   );
 }
 
-// Session-Cookie-Name. Legacy „Oikos"-Installationen nutzten `oikos.sid`; der
+// Session-Cookie-Name. Legacy â€žOikos"-Installationen nutzten `oikos.sid`; der
 
 
 
@@ -212,7 +212,7 @@ function sessionMiddleware(req, res, next) {
         secure: process.env.SESSION_SECURE === 'true',
         maxAge: 1000 * 60 * 60 * 24 * 7,
         path: '/',
-        encode: (v) => v, // Wert ist bereits kodiert → kein Doppel-Encoding
+        encode: (v) => v, // Wert ist bereits kodiert â†’ kein Doppel-Encoding
       });
 
       res.clearCookie(LEGACY_SESSION_COOKIE, { path: '/' });
@@ -721,7 +721,7 @@ export function findOrCreateOidcUser(database, claims) {
   if (!isOidcSignupAllowed()) return null;
 
   // 4. Eindeutigen username ableiten (Kollision mit bestehenden Usernamen vermeiden).
-  //    Reihenfolge: preferred_username (Standard-Claim) → username (non-standard,
+  //    Reihenfolge: preferred_username (Standard-Claim) â†’ username (non-standard,
 
 
 
@@ -1451,7 +1451,7 @@ router.get('/oidc/callback', async (req, res) => {
     const config = await getOidcConfig();
     if (!config) return res.redirect('/login?error=oidc_not_configured');
 
-    // Einmalig konsumieren — verhindert Wiederverwendung von state/nonce/verifier
+    // Einmalig konsumieren â€” verhindert Wiederverwendung von state/nonce/verifier
     const stored = req.session.oidc;
     delete req.session.oidc;
 
@@ -1509,7 +1509,7 @@ router.get('/oidc/callback', async (req, res) => {
     });
 
 
-    // Redirect, weil die Anmeldeseite sonst „SSO-Anmeldung fehlgeschlagen"
+    // Redirect, weil die Anmeldeseite sonst â€žSSO-Anmeldung fehlgeschlagen"
 
 
     // seinem Passwort statt bei seinem Admin.
@@ -1551,6 +1551,79 @@ router.get('/oidc/callback', async (req, res) => {
  * Body: { username: string, display_name: string, password: string }
  * Response: { user: { id, username, display_name, avatar_color, role } }
  */
+router.post('/signup', loginLimiter, async (req, res) => {
+  try {
+    const username = String(req.body?.username || '').trim();
+    const display_name = String(req.body?.display_name || '').trim();
+    const password = req.body?.password;
+
+    if (!username || !display_name || !password) {
+      return res.status(400).json({
+        error: 'Username, display name, and password are required.',
+        code: 400,
+      });
+    }
+
+    if (!/^[a-zA-Z0-9._-]{3,64}$/.test(username)) {
+      return res.status(400).json({
+        error: 'Username must be 3-64 characters long and may only contain letters, numbers, dots, hyphens, and underscores.',
+        code: 400,
+      });
+    }
+
+    if (display_name.length > 128) {
+      return res.status(400).json({
+        error: 'Display name may be at most 128 characters long.',
+        code: 400,
+      });
+    }
+
+    if (normalizePassword(password).length < 8) {
+      return res.status(400).json({
+        error: 'Password must be at least 8 characters long.',
+        code: 400,
+      });
+    }
+
+    const avatarColor =
+      avatarColors[Math.floor(Math.random() * avatarColors.length)];
+
+    const hash = await hashPassword(password);
+
+    const created = db.get()
+      .prepare(
+        'INSERT INTO users (username, display_name, password_hash, avatar_color, role) VALUES (?, ?, ?, ?, ?)'
+      )
+      .run(username, display_name, hash, avatarColor, 'member');
+
+    syncFamilyMemberArtifacts(db.get(), created.lastInsertRowid, {
+      displayName: display_name,
+      actorUserId: created.lastInsertRowid,
+    });
+
+    const createdUser = db.get()
+      .prepare(`SELECT ${USER_PUBLIC_COLUMNS} FROM users WHERE id = ?`)
+      .get(created.lastInsertRowid);
+
+    return res.status(201).json({
+      user: publicUser(createdUser),
+    });
+  } catch (err) {
+    if (err.message?.includes('UNIQUE constraint')) {
+      return res.status(409).json({
+        error: 'Username is already taken.',
+        code: 409,
+      });
+    }
+
+    log.error('Signup error:', err);
+
+    return res.status(500).json({
+      error: 'Internal server error.',
+      code: 500,
+    });
+  }
+});
 router.post('/setup', loginLimiter, async (req, res) => {
   try {
     const { count } = db.get().prepare('SELECT COUNT(*) as count FROM users').get();
@@ -2388,7 +2461,7 @@ router.delete('/users/:id', requireAuth, requireAdmin, csrfMiddleware, (req, res
 
       db.get().prepare('UPDATE ics_subscriptions SET default_assignee_user_id = NULL WHERE default_assignee_user_id = ?').run(userId);
       db.get().prepare('UPDATE external_calendars SET default_assignee_user_id = NULL WHERE default_assignee_user_id = ?').run(userId);
-      // Schichtplan (Migration 189): schedule_patterns→pattern_days, schedule_overrides
+      // Schichtplan (Migration 189): schedule_patternsâ†’pattern_days, schedule_overrides
 
       // ihre schedule_custom_field_values-Zeilen nicht - polymorph, kein echter
 
@@ -2433,3 +2506,4 @@ setInterval(() => {
 }, 60 * 60_000).unref();
 
 export { router, sessionMiddleware, requireAuth, requireAdmin, syncFamilyMemberArtifacts, normalizeAvatarData };
+

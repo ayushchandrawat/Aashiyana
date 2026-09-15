@@ -233,6 +233,8 @@ const auth = {
     return res;
   },
   setup: (username, display_name, password) => api.post('/auth/setup', { username, display_name, password }),
+  signup: (username, display_name, password) =>
+  api.post('/auth/signup', { username, display_name, password }),
   getUsers: () => api.get('/auth/users'),
 
 

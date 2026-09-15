@@ -1,4 +1,4 @@
-
+﻿
 import { api, auth } from '/api.js';
 import { createPageController } from '/utils/page-lifecycle.js';
 import { canSeeWidget, moduleAccess } from '/permissions.js';
@@ -55,7 +55,7 @@ const noteCategoryScope = (category) => t(
 );
 
 
-// ── Onboarding ──────────────────────────────────────────────────────────────
+// â”€â”€ Onboarding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const ONBOARDING_KEY = 'aashiyana-onboarded';
 
@@ -426,7 +426,7 @@ const BUDGET_CATEGORY_LABEL_KEYS = {
   financial_other: 'catFinancialOther',
   subscriptions: 'catSubscriptions',
   'Erwerbseinkommen': 'catEarnedIncome',
-  'Kapitalerträge': 'catInvestmentIncome',
+  'KapitalertrÃ¤ge': 'catInvestmentIncome',
   'Geschenke & Transfers': 'catTransferGiftIncome',
   'Sozialleistungen': 'catGovernmentBenefits',
   'Sonstiges Einkommen': 'catOtherIncome',
@@ -457,7 +457,7 @@ function greetingPeriod() {
   return 'evening';
 }
 
-// Masthead-Datum nach Apple-Kanon („Mittwoch, 6. August"): Wochentag + Tag +
+// Masthead-Datum nach Apple-Kanon (â€žMittwoch, 6. August"): Wochentag + Tag +
 
 // (.dashboard-overview__date, text-transform). Bewusst lokales new Date()
 // (reines Anzeige-Datum, keine ISO-Konvertierung - Zeitzonen-Falle).
@@ -467,9 +467,9 @@ function mastheadDateLabel(now = new Date()) {
   }).format(zonedUTCProxy(now));
 }
 
-// Relatives Datumslabel: „Heute"/„Morgen", sonst das locale-formatierte Datum.
+// Relatives Datumslabel: â€žHeute"/â€žMorgen", sonst das locale-formatierte Datum.
 
-// zusammengesetztes „Datum, Zeit" per Komma zu zerschneiden (locale-fragil:
+// zusammengesetztes â€žDatum, Zeit" per Komma zu zerschneiden (locale-fragil:
 // manche Locales setzen selbst ein Komma ins Datum).
 function relativeDateLabel(value) {
   if (value === null || value === undefined || value === '') return '';
@@ -535,22 +535,22 @@ function formatDueDate(dateStr, timeStr) {
     : formatDate(dayKey);
 
   if (overdue) {
-    return { text: `${t('dashboard.overdue')} – ${fullLabel}`, overdue: true };
+    return { text: `${t('dashboard.overdue')} â€“ ${fullLabel}`, overdue: true };
   }
 
   if (calDayDiff === 1 && Number(dueTime?.slice(0, 2)) >= 22 && diffH < 24) {
-    return { text: `${t('dashboard.dueSoon')} – ${fullLabel}`, overdue: false, soon: true };
+    return { text: `${t('dashboard.dueSoon')} â€“ ${fullLabel}`, overdue: false, soon: true };
   }
 
   if (calDayDiff === 0) {
-    return { text: dueTime ? `${t('dashboard.dueToday')} – ${formatTime(dueStamp)}` : t('dashboard.dueToday'), overdue: false, soon: true };
+    return { text: dueTime ? `${t('dashboard.dueToday')} â€“ ${formatTime(dueStamp)}` : t('dashboard.dueToday'), overdue: false, soon: true };
   }
 
   if (calDayDiff === 1) {
 
 
 
-    return { text: dueTime ? `${t('dashboard.dueTomorrow')} – ${formatTime(dueStamp)}` : t('dashboard.dueTomorrow'), overdue: false };
+    return { text: dueTime ? `${t('dashboard.dueTomorrow')} â€“ ${formatTime(dueStamp)}` : t('dashboard.dueTomorrow'), overdue: false };
   }
 
   return { text: fullLabel, overdue: false };
@@ -594,7 +594,7 @@ function budgetCategoryLabel(category) {
   return key ? t(`budget.${key}`) : (category || '-');
 }
 
-function formatCurrency(amount, currency = 'EUR') {
+function formatCurrency(amount, currency = 'INR') {
   return getNumberFormat({
     style: 'currency',
     currency,
@@ -725,7 +725,7 @@ function buildTodayHighlights(data) {
 }
 
 // Pick the meal relevant to the current time of day (matches greeting thresholds:
-// morning → breakfast, afternoon → lunch, evening → dinner). If the target meal
+// morning â†’ breakfast, afternoon â†’ lunch, evening â†’ dinner). If the target meal
 // is not planned, fall back to the next planned meal later today.
 function selectTodayMeal(meals) {
   const order = ['breakfast', 'lunch', 'dinner'];
@@ -922,7 +922,7 @@ function renderUpcomingEvents(events) {
           <div class="event-item__time">
             <span class="event-time-badge ${isToday ? 'event-time-badge--today' : ''}">${isToday ? t('common.today') : relativeDateLabel(dayKey)}</span>
             ${timeStr}
-            ${e.location ? ` · ${esc(fmtLocation(e.location))}` : ''}
+            ${e.location ? ` Â· ${esc(fmtLocation(e.location))}` : ''}
             ${e.cal_name ? `<span class="event-item__cal">${esc(e.cal_name)}</span>` : ''}
           </div>
         </div>
@@ -987,7 +987,7 @@ export function renderUpcomingBirthdays(allBirthdays, size) {
         </div>
         <div class="birthday-widget-item__body">
           <div class="birthday-widget-item__name">${esc(b.name)}</div>
-          <div class="birthday-widget-item__meta">${formatDate(b.next_date ?? b.next_birthday)} · ${daysLabel}</div>
+          <div class="birthday-widget-item__meta">${formatDate(b.next_date ?? b.next_birthday)} Â· ${daysLabel}</div>
         </div>
         ${occasionLabel ? `<div class="birthday-widget-item__age">${esc(occasionLabel)}</div>` : ''}
       </div>
@@ -1069,7 +1069,7 @@ function renderTodayMeals(meals, visibleMealTypes = MEAL_ORDER) {
               hasOwnImage: meal.recipe_has_own_image,
               className: 'meal-slot__thumb',
             }) : ''}<span class="meal-slot__title-text">${esc(meal.title)}</span>`
-          : '—'}</div>
+          : 'â€”'}</div>
       </div>
     `;
   }).join('');
@@ -1103,7 +1103,7 @@ function renderPinnedNotes(allNotes, size) {
     const s = String(text ?? '');
     if (s.length <= 200) return s;
     const cut = s.slice(0, 200);
-    return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), 120))}…`;
+    return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), 120))}â€¦`;
   };
 
   // stand unbedingt da, also trugen farblose Notizen `--note-color:;` - ein
@@ -1258,7 +1258,7 @@ function renderFamilyWidget(users, data) {
     const myShift = scheduleEntriesToday.find((entry) => Number(entry.user_id) === Number(u.id) && entry.shift_type);
     if (myShift) {
       const type = myShift.shift_type;
-      parts.push(esc(type.short_code ? `${type.short_code} · ${type.name}` : type.name));
+      parts.push(esc(type.short_code ? `${type.short_code} Â· ${type.name}` : type.name));
     }
     const open = openByUser.get(u.id) ?? 0;
     if (open > 0) parts.push(esc(t('dashboard.memberOpenTasks', { count: open })));
@@ -1270,11 +1270,11 @@ function renderFamilyWidget(users, data) {
     let status;
     let free = false;
     if (parts.length) {
-      status = parts.join(' · ');
+      status = parts.join(' Â· ');
     } else {
       const upcoming = events.find((e) => eventOccurrenceDateKey(e) > todayKey && assignedTo(e));
       if (upcoming) {
-        status = `${esc(relativeDateLabel(eventOccurrenceDateKey(upcoming)))} · ${esc(upcoming.title)}`;
+        status = `${esc(relativeDateLabel(eventOccurrenceDateKey(upcoming)))} Â· ${esc(upcoming.title)}`;
       } else {
         status = esc(t('dashboard.todayFree'));
         free = true;
@@ -1367,7 +1367,7 @@ function renderBudgetSavings(budget, balance, income, savingsRate) {
   return `
     <div class="budget-widget__savings">
       <span>${t('dashboard.savingsRate')}</span>
-      <strong>${income > 0 ? `${savingsRate}%` : '–'}</strong>
+      <strong>${income > 0 ? `${savingsRate}%` : 'â€“'}</strong>
     </div>
     ${income > 0 ? `
     <div class="budget-widget__share" aria-hidden="true">
@@ -1413,7 +1413,7 @@ function renderBudgetWidget(budget, currency) {
         </span>
       </div>
       ${budget?.topExpenseCategory
-        ? `<div class="budget-widget__footer">${t('dashboard.topExpense')}: <strong>${esc(budgetCategoryLabel(budget.topExpenseCategory))}</strong> · ${formatCurrency(budget.topExpenseAmount, currency)}</div>`
+        ? `<div class="budget-widget__footer">${t('dashboard.topExpense')}: <strong>${esc(budgetCategoryLabel(budget.topExpenseCategory))}</strong> Â· ${formatCurrency(budget.topExpenseAmount, currency)}</div>`
         : ''}
     </div>
   </div>`;
@@ -1476,7 +1476,7 @@ function metricTileFor(id, data, currency) {
       return {
         id, route, icon: widgetIcon('birthdays'), label: t('nav.birthdays'),
         value: days === 0 ? t('common.today') : days === 1 ? t('common.tomorrow') : t('dashboard.daysLeft', { count: days }),
-        note: next.kind === 'name_day' ? `${next.name} · ${t('birthdays.nameDay')}` : next.name,
+        note: next.kind === 'name_day' ? `${next.name} Â· ${t('birthdays.nameDay')}` : next.name,
       };
     }
     case 'meals': {
@@ -1765,7 +1765,7 @@ function renderCycleWidget(cycle) {
   const gap = (C - frac * C).toFixed(2);
 
   const ring = `
-    <svg class="cycle-widget__ring" viewBox="0 0 64 64" role="img" aria-label="${esc(`${phaseLabel} · ${dayText}`)}">
+    <svg class="cycle-widget__ring" viewBox="0 0 64 64" role="img" aria-label="${esc(`${phaseLabel} Â· ${dayText}`)}">
       <circle class="cycle-widget__ring-track" cx="32" cy="32" r="${R}" fill="none" stroke-width="6" />
       <circle class="cycle-widget__ring-arc" cx="32" cy="32" r="${R}" fill="none" stroke="${phaseColor}"
         stroke-width="6" stroke-linecap="round" stroke-dasharray="${lit} ${gap}" transform="rotate(-90 32 32)" />
@@ -1850,7 +1850,7 @@ function renderScheduleWidget(schedule, users, size) {
       ? `<img src="${esc(user.avatar_data)}" alt="" loading="lazy">`
       : esc(initials(user?.display_name ?? ''));
     const shiftLabel = type
-      ? esc(type.short_code ? `${type.short_code} · ${type.name}` : type.name)
+      ? esc(type.short_code ? `${type.short_code} Â· ${type.name}` : type.name)
       : esc(t('schedule.freeDay'));
     const swatchColor = type ? type.color : 'var(--color-border)';
     // Eigene Punkt-Klasse statt `.schedule-swatch` (schedule.css): router.js
@@ -1995,7 +1995,7 @@ function renderHousekeepingWidget(hk, currency) {
         <span class="housekeeping-widget__dot" aria-hidden="true"></span>
         <div class="housekeeping-widget__lines">
           <div class="housekeeping-widget__state">${t('dashboard.housekeepingPresent')}</div>
-          <div class="housekeeping-widget__sub">${hk.workerName ? `${esc(hk.workerName)} · ` : ''}${hk.presentSince ? t('dashboard.housekeepingSince', { time: formatTime(new Date(hk.presentSince)) }) : ''}</div>
+          <div class="housekeeping-widget__sub">${hk.workerName ? `${esc(hk.workerName)} Â· ` : ''}${hk.presentSince ? t('dashboard.housekeepingSince', { time: formatTime(new Date(hk.presentSince)) }) : ''}</div>
         </div>
       </div>`
     : `<div class="housekeeping-widget__status">
@@ -2125,7 +2125,7 @@ function buildTodayCockpitModel(data, cfg = [], { cap = PROGRAM_ROW_CAP } = {}) 
         ? formatDateTime(outlookEvent.start_datetime)
         : relativeDateLabel(eventOccurrenceDateKey(outlookEvent));
       outlook = {
-        sub: t('dashboard.todayNextUp', { event: `${when} · ${outlookEvent.title}` }),
+        sub: t('dashboard.todayNextUp', { event: `${when} Â· ${outlookEvent.title}` }),
         route: calendarEventRoute(outlookEvent),
       };
     } else {
@@ -2136,7 +2136,7 @@ function buildTodayCockpitModel(data, cfg = [], { cap = PROGRAM_ROW_CAP } = {}) 
         ? `${relativeDateLabel(dueDay)}, ${formatTime(`${dueDay}T${dueTime}`)}`
         : relativeDateLabel(dueDay);
       outlook = {
-        sub: t('dashboard.todayNextUp', { event: `${when} · ${outlookTask.title}` }),
+        sub: t('dashboard.todayNextUp', { event: `${when} Â· ${outlookTask.title}` }),
         route: '/tasks',
       };
     }
@@ -2274,8 +2274,8 @@ function renderDashboardOverview(user, editing = false, weather = null, updatedA
         <div class="dashboard-overview__tools">
           ${editing ? `
           <!-- Die Beruhigung stand nur im Toast NACH dem Speichern, die
-               Unsicherheit sitzt aber DAVOR: während man eine Kachel wegzieht
-               und nicht weiß, ob man sie gerade den Kindern wegnimmt (Critique
+               Unsicherheit sitzt aber DAVOR: wÃ¤hrend man eine Kachel wegzieht
+               und nicht weiÃŸ, ob man sie gerade den Kindern wegnimmt (Critique
                2026-08-16). Ein Satz im Anpassen-Modus beantwortet sie im
                richtigen Moment. -->
           <div class="dashboard-customize-scope">
@@ -2599,7 +2599,7 @@ function renderWidgetCustomizeControls(w, index = 0, total = 1) {
 
 
 
-  // <select> (Critique P1: doppelte Kontrolle + Overflow auf 1×1-Kacheln). Jeder
+  // <select> (Critique P1: doppelte Kontrolle + Overflow auf 1Ã—1-Kacheln). Jeder
 
   const sizeButtons = WIDGET_SIZE_PRESETS.map((p) => {
     const active = p.value === activeSize;
@@ -2878,7 +2878,7 @@ const WEATHER_ICON_BASE = '/api/v1/weather/icon/';
 // (via /icon-Proxy) + bereits lokalisierten Beschreibungstext. OWM-Legacy kann
 // zudem 'standard' (Kelvin) liefern; Open-Meteo nur metric/imperial.
 function weatherUnitSymbol(units) {
-  return units === 'imperial' ? '°F' : units === 'standard' ? 'K' : '°C';
+  return units === 'imperial' ? 'Â°F' : units === 'standard' ? 'K' : 'Â°C';
 }
 
 function weatherDescText(weather, desc) {
@@ -2975,7 +2975,7 @@ function mastheadWeatherHtml(weather) {
   return `
     <p class="dashboard-overview__weather"${weatherToneAttr(weather.current.icon)}>
       ${weatherIconHtml(weather, weather.current.icon, 'dashboard-overview__weather-icon', 18, desc)}
-      <span>${esc(String(weather.current.temp))}${weatherUnitSymbol(weather.units)} · ${esc(desc)}</span>
+      <span>${esc(String(weather.current.temp))}${weatherUnitSymbol(weather.units)} Â· ${esc(desc)}</span>
     </p>`;
 }
 
@@ -3002,8 +3002,8 @@ function weatherTodayRange(weather, cls) {
 
 
   return `<span class="${cls}" role="img" aria-label="${aria}">
-      <span class="${cls}-high" aria-hidden="true">${esc(String(hi))}°</span>
-      <span class="${cls}-low" aria-hidden="true">${esc(String(lo))}°</span>
+      <span class="${cls}-high" aria-hidden="true">${esc(String(hi))}Â°</span>
+      <span class="${cls}-low" aria-hidden="true">${esc(String(lo))}Â°</span>
     </span>`;
 }
 
@@ -3061,8 +3061,8 @@ function renderWeatherWidget(weather) {
         <div class="weather-forecast__label${weatherIsToday(weather, d.date) ? ' weather-forecast__label--today' : ''}">${esc(label)}</div>
         ${iconHtml(d.icon, 'weather-forecast__icon', 32, descText(d.desc))}
         <div class="weather-forecast__temps">
-          <span class="weather-forecast__high">${d.temp_max}°</span>
-          <span class="weather-forecast__low">${d.temp_min}°</span>
+          <span class="weather-forecast__high">${d.temp_max}Â°</span>
+          <span class="weather-forecast__low">${d.temp_min}Â°</span>
         </div>
         ${spanHtml}
       </div>`;
@@ -3274,8 +3274,8 @@ function renderWallWeather(weather) {
         <span class="wall-weather__day-label">${esc(label)}</span>
         ${weatherIconHtml(weather, d.icon, 'wall-weather__day-icon', 32, weatherDescText(weather, d.desc))}
         <span class="wall-weather__day-temps">
-          <span class="wall-weather__day-high">${esc(String(d.temp_max))}°</span>
-          <span class="wall-weather__day-low">${esc(String(d.temp_min))}°</span>
+          <span class="wall-weather__day-high">${esc(String(d.temp_max))}Â°</span>
+          <span class="wall-weather__day-low">${esc(String(d.temp_min))}Â°</span>
         </span>
       </li>`;
   }).join('');
@@ -3288,7 +3288,7 @@ function renderWallWeather(weather) {
         <span class="wall-weather__body">
           <span class="wall-weather__temp">${esc(String(current.temp))}${weatherUnitSymbol(units)}</span>
           ${weatherTodayRange(weather, 'wall-weather__range')}
-          <span class="wall-weather__desc">${esc(desc)}${city ? ` · ${esc(city)}` : ''}</span>
+          <span class="wall-weather__desc">${esc(desc)}${city ? ` Â· ${esc(city)}` : ''}</span>
         </span>
       </div>
       ${days ? `<ol class="wall-weather__forecast">${days}</ol>` : ''}
@@ -3499,7 +3499,7 @@ async function openTaskFromOverview(taskId, container, rerender, user) {
     const { openTaskById } = await import('/pages/tasks.js');
     await openTaskById(taskId, { user, container, onChanged: rerender });
   } catch (err) {
-    console.error('[Dashboard] Aufgabe konnte nicht geöffnet werden:', err);
+    console.error('[Dashboard] Aufgabe konnte nicht geÃ¶ffnet werden:', err);
     window.aashiyana?.showToast(err.message ?? t('tasks.loadError'), 'danger');
   }
 }
@@ -3712,7 +3712,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
   let followsDefault = true;
   const canPublish = user?.role === 'admin';
   let isCustomizing = false;
-  let currency     = 'EUR';
+  let currency     = 'INR';
   let visibleMealTypes = MEAL_ORDER;
   let loadFailed   = false;
   let loadErrorStatus = null;
@@ -3761,7 +3761,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
     followsDefault = prefsRes.data?.dashboard_follows_default !== false;
 
     rememberLayoutHint(widgetConfig, dashboardQuery(widgetConfig));
-    currency     = prefsRes.data?.currency ?? 'EUR';
+    currency     = prefsRes.data?.currency ?? 'INR';
     visibleMealTypes = normalizeVisibleMealTypes(prefsRes.data?.visible_meal_types);
     lastLoadedAt = new Date();
   } catch (err) {
@@ -3792,7 +3792,7 @@ export async function render(container, { user, signal: routeSignal = null } = {
 
 
 
-  // Schedule-Seite fuer ihre eigene „Heute"-Karte nutzt); die Typenliste daneben
+  // Schedule-Seite fuer ihre eigene â€žHeute"-Karte nutzt); die Typenliste daneben
 
   async function ensureScheduleSlice() {
     if (data.schedule !== undefined) return;
@@ -4393,8 +4393,8 @@ export async function render(container, { user, signal: routeSignal = null } = {
         if (signal.aborted) return;
         weather = res.data ?? null;
         rebuildDashboard(widgetConfig);
-      } catch { /* Hintergrund-Timer: bewusst still — der Nutzer hat nichts
-                   angestoßen, ein Toast alle 30 Min wäre reiner Lärm. */ }
+      } catch { /* Hintergrund-Timer: bewusst still â€” der Nutzer hat nichts
+                   angestoÃŸen, ein Toast alle 30 Min wÃ¤re reiner LÃ¤rm. */ }
     };
     const timerId = setInterval(doAutoRefresh, 30 * 60 * 1000);
     signal.addEventListener('abort', () => clearInterval(timerId));
@@ -4479,6 +4479,7 @@ function wireWeatherRefresh(container, onUpdated = null, signal) {
 
 
 //
+
 
 
 

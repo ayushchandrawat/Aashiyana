@@ -84,15 +84,6 @@ function initials(name) {
   return (first + last).toUpperCase();
 }
 
-// Avatar einer Zeile. Zwei Faelle, zwei Sprecher:
-//
-
-// SEINE Farbe (Identitaetsfarben-Regel, DESIGN.md) - dasselbe Bild und dieselbe
-
-// bis 2026-08-18 der Modul-Ton, also dieselbe rosa Scheibe fuer jedes Mitglied.
-
-
-//
 
 
 
@@ -124,7 +115,6 @@ let state = {
   selectMode:     false,
   selected:       new Set(),
 
-  // haushaltweiten Region abgeleitet; null → libphonenumber-js nutzt nur
 
   defaultCountry: null,
 };

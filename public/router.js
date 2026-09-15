@@ -1,4 +1,4 @@
-
+﻿
 import { api, auth } from '/api.js';
 import { canAccessNavModule, navModuleAccess, setExtensionNavMap } from '/permissions.js';
 import { setExtensionModules, selectThirdPartyModuleList } from '/utils/extension-widgets.js';
@@ -56,7 +56,7 @@ import {
 //
 
 
-// /forgot-password, /reset-password und /join lieferten „Aashiyana · Aashiyana" -
+// /forgot-password, /reset-password und /join lieferten â€žAashiyana Â· Aashiyana" -
 
 
 
@@ -67,6 +67,7 @@ import {
 
 // --------------------------------------------------------
 const ROUTES = [
+  { path: '/signup', page: '/pages/signup.js', requiresAuth: false, module: null, titleKey: null },
   { path: '/login',    page: '/pages/login.js',    requiresAuth: false, module: null,        titleKey: null },
   { path: '/setup',    page: '/pages/setup.js',    requiresAuth: false, module: null,        titleKey: null },
   { path: '/forgot-password', page: '/pages/forgot-password.js', requiresAuth: false, module: null, titleKey: 'forgotPassword.title' },
@@ -142,7 +143,7 @@ function setThemeColor(lightColor, darkColor) {
 
   //
 
-  // `media="(prefers-color-scheme: …)"`; welche davon gilt, entscheidet also das
+  // `media="(prefers-color-scheme: â€¦)"`; welche davon gilt, entscheidet also das
 
 
 
@@ -252,7 +253,7 @@ function reloadOnce() {
     const last = parseInt(sessionStorage.getItem(RELOAD_GUARD_KEY) || '0', 10);
     if (Date.now() - last < RELOAD_GUARD_MS) return false;
     sessionStorage.setItem(RELOAD_GUARD_KEY, String(Date.now()));
-  } catch { /* sessionStorage gesperrt (Private Mode) → Reload trotzdem wagen */ }
+  } catch { /* sessionStorage gesperrt (Private Mode) â†’ Reload trotzdem wagen */ }
   location.reload();
   return true;
 }
@@ -337,7 +338,7 @@ function warmPrimaryRoutes() {
       navItems().forEach((item) => {
         if (item.path && item.path !== currentPath) prefetchRoute(item.path);
       });
-    } catch { /* Prefetch ist rein spekulativ — Fehler nie eskalieren. */ }
+    } catch { /* Prefetch ist rein spekulativ â€” Fehler nie eskalieren. */ }
   };
   if ('requestIdleCallback' in window) {
     requestIdleCallback(run, { timeout: 2500 });
@@ -357,7 +358,7 @@ let _navBuiltForUserId = null;
 let currentPath = null;
 let isNavigating = false;
 // Zuletzt erfolgreich gerendertes Seiten-Modul. Erlaubt Soft-Navigation
-// innerhalb desselben Moduls (z. B. Settings-Blatt → Blatt): Statt das Modul
+// innerhalb desselben Moduls (z. B. Settings-Blatt â†’ Blatt): Statt das Modul
 
 
 let _renderedModule = null;
@@ -494,7 +495,7 @@ function updateBranding(path = currentPath) {
   const declaresOwnTitle = ROUTES.find((route) => route.path === path)?.titleKey === null;
   document.title = declaresOwnTitle
     ? appName
-    : `${routeTitle(path || '/')} · ${appName}`;
+    : `${routeTitle(path || '/')} Â· ${appName}`;
 
   document.querySelectorAll('meta[name="apple-mobile-web-app-title"]').forEach((meta) => {
     meta.setAttribute('content', appName);
@@ -666,7 +667,7 @@ async function navigate(path, userOrPushState = true, pushState = true) {
 
 
         _pendingLoginRedirect = false;
-        navigate(_setupRequired ? '/setup' : '/login');
+        navigate(_setupRequired ? '/setup' : (path === '/' ? '/signup' : '/login'));
         return;
       }
     }
@@ -690,7 +691,7 @@ async function navigate(path, userOrPushState = true, pushState = true) {
     }
 
 
-    // Rolle/dieses Mitglied gesperrtes Modul → Dashboard). #467
+    // Rolle/dieses Mitglied gesperrtes Modul â†’ Dashboard). #467
     if (route.module && route.path !== '/' && !canAccessNavModule(route.module)) {
       currentPath = null;
       isNavigating = false;
@@ -710,7 +711,7 @@ async function navigate(path, userOrPushState = true, pushState = true) {
       else history.pushState({ path }, '', path);
     }
 
-    // Soft-Navigation innerhalb desselben Moduls (z. B. Settings-Blatt → Blatt
+    // Soft-Navigation innerhalb desselben Moduls (z. B. Settings-Blatt â†’ Blatt
 
 
     // keine Slide-Transition, kein erneuter Auth-Refresh. Gibt update() false
@@ -729,7 +730,7 @@ async function navigate(path, userOrPushState = true, pushState = true) {
           query: new URLSearchParams(path.split('?')[1] ?? ''),
         });
       } catch (error) {
-        console.error('[Router] Soft-Update fehlgeschlagen, vollständiges Rendern folgt:', error);
+        console.error('[Router] Soft-Update fehlgeschlagen, vollstÃ¤ndiges Rendern folgt:', error);
         handled = false;
       }
       if (handled) {
@@ -788,7 +789,7 @@ async function navigate(path, userOrPushState = true, pushState = true) {
 
     if (_pendingLoginRedirect) {
       _pendingLoginRedirect = false;
-      navigate('/login');
+      navigate(currentPath === '/' ? '/signup' : '/login');
     }
   }
 }
@@ -1067,7 +1068,7 @@ async function refreshModuleCounts() {
     primeNavBadges(res);
     return true;
   } catch (err) {
-    console.error('[Router] Zählstände konnten nicht geladen werden:', err);
+    console.error('[Router] ZÃ¤hlstÃ¤nde konnten nicht geladen werden:', err);
     return false;
   }
 }
@@ -1389,7 +1390,7 @@ function renderAppShell(container) {
   const sidebarLogo = document.createElement('div');
   sidebarLogo.className = 'nav-sidebar__logo';
 
-  // SVG-Logomark aus docs/logo.svg — Gradient via CSS-Tokens
+  // SVG-Logomark aus docs/logo.svg â€” Gradient via CSS-Tokens
   const logomark = document.createElement('div');
   logomark.className = 'nav-sidebar__logomark';
   logomark.setAttribute('aria-hidden', 'true');
@@ -1577,7 +1578,7 @@ function renderAppShell(container) {
 
   pinnedSidebarItems.forEach((el) => sidebar.appendChild(el));
 
-  // Footer-Aktionen (keine Routen → kein data-route, damit Delegation/Indikator
+  // Footer-Aktionen (keine Routen â†’ kein data-route, damit Delegation/Indikator
   // sie ignorieren): Hilfe und Live-Changelog.
   const sidebarFooter = document.createElement('div');
   sidebarFooter.className = 'nav-sidebar__footer-actions';
@@ -1596,7 +1597,7 @@ function renderAppShell(container) {
     }),
 
 
-    // Geschwister — Danger-Rot erscheint erst im Confirm.
+    // Geschwister â€” Danger-Rot erscheint erst im Confirm.
     sidebarActionEl({
       labelKey: 'settings.logout',
       icon: 'log-out',
@@ -1668,7 +1669,7 @@ function renderAppShell(container) {
     moreSheet.appendChild(moreSearchBar);
 
     // Hinweis + App-Launcher-Grid + System-Cluster. Geteilte Logik mit
-    // rebuildNavigation() (Sprachwechsel / Modul-Toggle) — sonst driften die
+    // rebuildNavigation() (Sprachwechsel / Modul-Toggle) â€” sonst driften die
     // zwei Render-Pfade auseinander.
     moreSheet.append(...buildMoreSheetBody());
   }
@@ -1772,7 +1773,7 @@ function renderAppShell(container) {
 
   // Erstes Shell-Kind: liegt via z-index: -1 (glass.css Section 40) hinter
 
-  // Blob 1 folgt --active-module-accent → rekoloriert pro Sektion.
+  // Blob 1 folgt --active-module-accent â†’ rekoloriert pro Sektion.
   const lgBackdrop = document.createElement('div');
   lgBackdrop.className = 'lg-backdrop';
   lgBackdrop.setAttribute('aria-hidden', 'true');
@@ -2025,7 +2026,7 @@ function initKeyboardShortcuts() {
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     if (document.activeElement?.isContentEditable) return;
     if (document.querySelector('.modal-overlay') && e.key !== 'Escape') return;
-    // Modifikatoren durchlassen: Cmd/Ctrl/Alt-Kombis (z. B. Cmd+F „Im Browser
+    // Modifikatoren durchlassen: Cmd/Ctrl/Alt-Kombis (z. B. Cmd+F â€žIm Browser
 
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
@@ -2076,8 +2077,8 @@ function initKeyboardShortcuts() {
 }
 
 function showHelpModal() {
-  // Mirrors the CSS sidebar↔bottom-nav breakpoint (sidebar is min-width:1024px):
-  // without a keyboard, shortcut rows are useless — show a plain-language guide.
+  // Mirrors the CSS sidebarâ†”bottom-nav breakpoint (sidebar is min-width:1024px):
+  // without a keyboard, shortcut rows are useless â€” show a plain-language guide.
   const coarsePointer = window.matchMedia('(max-width: 1023px)').matches;
   const helpRows = buildHelpRows({ coarsePointer, shortcuts: SHORTCUTS, t });
 
@@ -2823,7 +2824,7 @@ function renderSearchResults(container, data, onClose) {
   makeSection('nav.tasks',    'tasks',    tasks,    (i) => `/tasks?open=${i.id}`, null,
     (i) => (i.due_date ? formatDate(i.due_date) : ''));
   makeSection('nav.calendar', 'calendar', events,   (i) => `/calendar?open=${i.id}`, null,
-    (i) => (i.start_datetime ? `${formatDate(i.start_datetime)}${i.all_day ? '' : ` · ${formatTime(i.start_datetime)}`}` : ''));
+    (i) => (i.start_datetime ? `${formatDate(i.start_datetime)}${i.all_day ? '' : ` Â· ${formatTime(i.start_datetime)}`}` : ''));
   makeSection('nav.notes',    'notes',    notes,    (i) => `/notes?open=${i.id}`);
   makeSection('nav.contacts', 'contacts', contacts, (i) => `/contacts?open=${i.id}`);
   makeSection('nav.shopping', 'shopping', items,    (i) => `/shopping?list=${i.list_id}&highlight=${i.id}`);
@@ -2988,7 +2989,7 @@ function secondaryMobileItems() {
 function sidebarNavItems() {
   const elements = [];
   // Zwei entkoppelte Elemente hinter den Nav-Items (z-index: 0):
-  // 1. Die persistente Aktiv-Pille bleibt am aktiven Item verankert — sie wandert
+  // 1. Die persistente Aktiv-Pille bleibt am aktiven Item verankert â€” sie wandert
 
 
 
@@ -3267,7 +3268,7 @@ function positionSidebarIndicator() {
   }
 
 
-  // Navigation verlor ihren „Du bist hier"-Anker. Manuelles Scrollen statt
+  // Navigation verlor ihren â€žDu bist hier"-Anker. Manuelles Scrollen statt
 
 
 
@@ -3669,7 +3670,7 @@ window.addEventListener('unhandledrejection', (e) => {
   e.preventDefault();
 });
 
-// SW-Update: neue Version im Hintergrund installiert → Toast anzeigen
+// SW-Update: neue Version im Hintergrund installiert â†’ Toast anzeigen
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', (e) => {
     if (e.data?.type === 'SW_UPDATED') {
@@ -3771,7 +3772,7 @@ function rebuildNavigation({ updateLabels = true } = {}) {
   }
 
   if (navSidebarItems) {
-    // replaceChildren recria toda a árvore da navegação (por exemplo, após
+    // replaceChildren recria toda a Ã¡rvore da navegaÃ§Ã£o (por exemplo, apÃ³s
     // replaceChildren baut die Navigation komplett neu (Routenwechsel, Sprache,
 
 
@@ -3803,7 +3804,7 @@ function rebuildNavigation({ updateLabels = true } = {}) {
       searchBar.setAttribute('aria-label', t('search.placeholder'));
     }
 
-    // Funktion neu bauen — identisch zu renderAppShell().
+    // Funktion neu bauen â€” identisch zu renderAppShell().
     moreSheet.replaceChildren(handle, ...(searchBar ? [searchBar] : []), ...buildMoreSheetBody());
     if (window.lucide) window.lucide.createIcons({ el: moreSheet });
   }
@@ -3980,7 +3981,7 @@ if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
       document.documentElement.removeAttribute('data-theme');
     }
 
-    // Theme „Automatisch" (kein data-theme) folgt prefers-color-scheme rein per
+    // Theme â€žAutomatisch" (kein data-theme) folgt prefers-color-scheme rein per
 
 
 
@@ -4075,3 +4076,6 @@ window.aashiyana = {
 
 
 window.oikos = window.aashiyana;
+
+
+

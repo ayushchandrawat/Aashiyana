@@ -281,14 +281,12 @@ async function savePlan(panel, category, original = null) {
   const raw = panel.querySelector('#plan-amount').value;
   const amount = parseFloat(raw);
   if (isNaN(amount) || amount <= 0) {
-    // Fehler am Feld statt als ortloser Toast (geteiltes Muster, Critique P1).
     reportFieldError(panel.querySelector('#plan-amount'), t('budget.validAmountRequired'));
     return;
   }
 
 
 
-  // schon vorher neben dem Raster lag, bleibt speicherbar.
   if (!amountIsSavable(amount, view.ctx.currency, { original })) {
     reportFieldError(panel.querySelector('#plan-amount'), t('common.amountPrecisionRequired', {
       currency: view.ctx.currency,
